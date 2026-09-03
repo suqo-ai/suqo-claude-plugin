@@ -1,0 +1,1 @@
+# suqo-claude-plugin
