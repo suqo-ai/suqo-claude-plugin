@@ -1,6 +1,6 @@
 # suqo-claude-plugin
 
-Claude Code plugin that ships skills for building apps on top of the **SUQO TypeScript SDK**.
+Claude Code plugin that ships skills for building apps on top of the **SUQO SDKs**.
 
 ## What this is
 
@@ -32,8 +32,3 @@ suqo-claude-plugin/
 
 Add new skills under `skills/<skill-name>/SKILL.md` following the same pattern. Keep this repo as the single place we ship all SUQO Claude skills from — don't spin up separate plugin repos per skill.
 
-## Roadmap
-
-- [ ] Add SUQO TypeScript SDK reference docs under `skills/ts-sdk-usage/references/`
-- [ ] Add starter templates under `skills/ts-sdk-usage/templates/`
-- [ ] Add `examples/` with a full sample app built using the SDK
