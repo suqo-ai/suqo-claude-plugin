@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "suqo-claude-plugin-marketplace",
+  "version": "0.1.0",
+  "description": "Code Pros AI marketplace for SUQO Claude plugins and skills.",
+  "owner": {
+    "name": "Code Pros AI",
+    "url": "https://github.com/Code-Pros-AI"
+  },
+  "plugins": [
+    {
+      "name": "suqo-claude-plugin",
+      "description": "Skills and SDK usage guides for building apps on top of the SUQO TypeScript SDK.",
+      "source": "./",
+      "category": "sdk"
+    }
+  ]
+}
