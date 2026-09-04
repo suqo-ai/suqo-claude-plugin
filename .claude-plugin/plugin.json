@@ -1,12 +1,20 @@
 {
   "name": "suqo-claude-plugin",
-  "version": "0.1.0",
-  "description": "Claude plugin for building apps with the SUQO TypeScript SDK.",
+  "version": "0.2.0",
+  "description": "Claude skills for building apps with the SUQO SDKs (PHP and TypeScript).",
   "author": {
     "name": "Code Pros AI",
     "url": "https://github.com/Code-Pros-AI"
   },
   "homepage": "https://github.com/Code-Pros-AI/suqo-claude-plugin",
   "license": "UNLICENSED",
-  "keywords": ["suqo", "sdk", "typescript"]
+  "keywords": [
+    "suqo",
+    "sdk",
+    "php",
+    "typescript",
+    "subscriptions",
+    "payments",
+    "webhooks"
+  ]
 }
