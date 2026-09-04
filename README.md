@@ -11,24 +11,60 @@ This repo is a Claude Code plugin (and its own marketplace source), so it can be
 /plugin install suqo-claude-plugin
 ```
 
-Once installed, Claude can read the skills here to understand the SUQO SDK and use it to scaffold or build apps a developer asks for.
+Once installed, Claude loads the relevant skill on its own when a developer asks for SUQO work — no explicit invocation needed, though `/php-sdk-usage` and friends still work.
+
+## Skills
+
+| Skill | Triggers on |
+|---|---|
+| `php-sdk-usage` | Any PHP work with the SUQO PHP SDK — products, subscriptions, paging, webhook verification, client wiring, error handling, testing. |
+| `ts-sdk-usage` | Building with the SUQO TypeScript SDK. *(Scaffold — references and templates not written yet.)* |
+
+Each skill is self-contained: `SKILL.md` carries the workflow and the rules that
+are easy to get wrong, `references/` holds the detail Claude loads only when the
+task needs it, and `templates/` holds code to adapt rather than write from
+scratch.
+
+One skill per SDK, deliberately. Splitting PHP into separate usage/webhook/test
+skills meant three overlapping `description` fields competing to be selected;
+one skill with a chunked `references/` folder picks itself reliably and still
+loads only the page a task needs.
 
 ## Structure
 
 ```
 suqo-claude-plugin/
   .claude-plugin/
-    plugin.json         # plugin metadata
-    marketplace.json     # marketplace source definition
+    plugin.json           # plugin metadata
+    marketplace.json      # marketplace source definition
   skills/
-    ts-sdk-usage/         # teaches Claude how to use the SUQO TypeScript SDK
+    php-sdk-usage/
       SKILL.md
-      references/         # chunked SDK API reference docs
-      templates/           # boilerplate app snippets
+      references/         # api-surface, client-setup, subscriptions, products,
+                          #   webhooks, errors, models
+      templates/          # client factory, list, create, Laravel provider,
+                          #   webhook handlers (plain PHP, Laravel, Symfony, PSR-15)
+    ts-sdk-usage/
+      SKILL.md
+      references/
+      templates/
   README.md
 ```
 
 ## Adding more skills
 
 Add new skills under `skills/<skill-name>/SKILL.md` following the same pattern. Keep this repo as the single place we ship all SUQO Claude skills from — don't spin up separate plugin repos per skill.
+
+Conventions worth keeping:
+
+- `name` in the frontmatter matches the directory name, lowercase and hyphenated.
+- `description` says *when* to use the skill and names the trigger phrases a
+  developer would actually type — that text is all Claude sees when deciding
+  whether to load it.
+- Keep `SKILL.md` short enough to hold in context. Push detail into
+  `references/`, one file per topic, and index them in a table.
+- Templates are real, runnable files, not sketches. Lint them (`php -l`) and,
+  where they are tests, run them.
+- State the API surface exactly and tell Claude not to invent methods. The PHP
+  skills' `references/api-surface.md` exists for that reason.
 
