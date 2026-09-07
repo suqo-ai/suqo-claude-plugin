@@ -51,12 +51,18 @@ final class SuqoServiceProvider extends ServiceProvider
     }
 
     /**
-     * Resolve eagerly in a console context so a bad key fails at boot rather
-     * than inside the first queued job.
+     * Fail fast on a *malformed* key in a console context (queue workers,
+     * scheduled commands) rather than inside the first job.
+     *
+     * Guarded on the key being present: `composer install` runs
+     * `package:discover`, and CI runs `config:cache` / `route:cache`, usually
+     * with no SUQO_API_KEY at all. An unconditional make() here would abort
+     * every one of those. A missing key still surfaces — as the
+     * RuntimeException above — the first time something resolves the client.
      */
     public function boot(): void
     {
-        if ($this->app->runningInConsole()) {
+        if ($this->app->runningInConsole() && (string) config('services.suqo.key') !== '') {
             $this->app->make(SuqoClient::class);
         }
     }
