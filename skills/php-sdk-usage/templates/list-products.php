@@ -17,9 +17,10 @@ use Suqo\SuqoClient;
 
 $suqo = new SuqoClient();
 
-// A one-way latch. Tripped here by SIGTERM/SIGINT; honoured before an attempt,
-// mid-flight, during retry backoff and at each page boundary.
-$token = new Cancellation();
+// A one-way latch, created via the documented factory. Tripped here by
+// SIGTERM/SIGINT; honoured before an attempt, mid-flight, during retry backoff
+// and at each page boundary.
+$token = Cancellation::none();
 
 if (function_exists('pcntl_async_signals')) {
     pcntl_async_signals(true);

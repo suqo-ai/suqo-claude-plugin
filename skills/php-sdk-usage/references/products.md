@@ -89,7 +89,7 @@ type reads as absent rather than failing the whole response. Guard with `??` or
 ```php
 use Suqo\Cancellation;
 
-$token = new Cancellation();
+$token = Cancellation::none();
 
 pcntl_signal(SIGTERM, static fn () => $token->cancel());
 pcntl_async_signals(true);
