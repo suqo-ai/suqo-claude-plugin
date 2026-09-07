@@ -11,7 +11,8 @@ This repo is a Claude Code plugin (and its own marketplace source), so it can be
 /plugin install suqo-claude-plugin
 ```
 
-Once installed, Claude loads the relevant skill on its own when a developer asks for SUQO work — no explicit invocation needed, though `/php-sdk-usage` and friends still work.
+Once installed, Claude loads the relevant skill on its own when a developer asks for SUQO work — no explicit invocation needed. Plugin skills are namespaced, so the explicit form is
+`/suqo-claude-plugin:php-sdk-usage`.
 
 ## Skills
 
@@ -66,5 +67,5 @@ Conventions worth keeping:
 - Templates are real, runnable files, not sketches. Lint them (`php -l`) and,
   where they are tests, run them.
 - State the API surface exactly and tell Claude not to invent methods. The PHP
-  skills' `references/api-surface.md` exists for that reason.
+  skill's `references/api-surface.md` exists for that reason.
 

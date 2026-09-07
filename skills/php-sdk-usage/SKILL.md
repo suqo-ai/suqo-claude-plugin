@@ -23,7 +23,8 @@ composer require suqo/suqo-php
    writing from scratch.
 4. **Write against documented methods only.** If a reference does not cover
    something, say so — do not invent a method, parameter or property. The
-   surface is small and closed: nine callable operations, three of which throw.
+   surface is small and closed — the table below is all of it, and the three
+   `customers` calls only throw.
 5. **Verify** — `php -l` every file written, then run the project's own test or
    lint command. If the project has a sandbox key available, exercise the code
    for real; otherwise say plainly that it was not run against the API.
