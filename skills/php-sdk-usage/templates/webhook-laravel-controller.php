@@ -3,13 +3,24 @@
 /**
  * Laravel: SUQO webhook controller.
  *
- * Route (routes/web.php or routes/api.php):
+ * Route — simplest is routes/api.php, which carries no CSRF middleware:
  *
- *   Route::post('/webhooks/suqo', SuqoWebhookController::class)
- *       ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
+ *   Route::post('/webhooks/suqo', SuqoWebhookController::class);
  *
- * On an older app, exclude the path in App\Http\Middleware\VerifyCsrfToken::$except
- * instead. Keep the route out of any middleware that reads or rewrites the body.
+ * If it must live in routes/web.php, exclude the path from CSRF validation.
+ * Do not use withoutMiddleware(VerifyCsrfToken::class): on Laravel 11+ the
+ * registered class is ValidateCsrfToken, so that exclusion silently does
+ * nothing and every delivery gets a 419.
+ *
+ *   Laravel 11+, bootstrap/app.php:
+ *     ->withMiddleware(function (Middleware $middleware) {
+ *         $middleware->validateCsrfTokens(except: ['webhooks/suqo']);
+ *     })
+ *
+ *   Laravel 10 and earlier, App\Http\Middleware\VerifyCsrfToken:
+ *     protected $except = ['webhooks/suqo'];
+ *
+ * Keep the route out of any middleware that reads or rewrites the body.
  *
  * config/services.php:
  *   'suqo' => ['webhook_secret' => env('SUQO_WEBHOOK_SECRET')],
