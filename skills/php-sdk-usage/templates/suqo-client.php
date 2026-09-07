@@ -29,6 +29,11 @@ return static function (): SuqoClient {
         throw new RuntimeException('SUQO_API_KEY is not set.');
     }
 
+    // Explicit unset/empty checks: `?:` would turn a deliberate
+    // SUQO_MAX_RETRIES=0 (the queue-worker setting) back into the default.
+    $timeout = getenv('SUQO_TIMEOUT');
+    $maxRetries = getenv('SUQO_MAX_RETRIES');
+
     try {
         // The environment is inferred from the key prefix — su_test_key_ is
         // sandbox, su_key_ is live. Passing environment: is a check, not a switch.
@@ -36,8 +41,8 @@ return static function (): SuqoClient {
             apiKey: $key,
             // Per attempt. Keep it short in a web request: with maxRetries: 2 the
             // worst case is three timeouts plus two backoffs.
-            timeout: (float) (getenv('SUQO_TIMEOUT') ?: 10.0),
-            maxRetries: (int) (getenv('SUQO_MAX_RETRIES') ?: 2),
+            timeout: $timeout !== false && $timeout !== '' ? (float) $timeout : 10.0,
+            maxRetries: $maxRetries !== false && $maxRetries !== '' ? (int) $maxRetries : 2,
             logLevel: getenv('APP_DEBUG') ? 'debug' : 'warn',
         );
     } catch (SuqoConfigError $e) {
