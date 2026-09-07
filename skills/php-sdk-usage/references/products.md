@@ -113,11 +113,20 @@ Rarely needed — `autoPaging()` exists — but if you must page manually, `next
 already absolute:
 
 ```php
-$page = $suqo->products->list(pageSize: 50);
+$n = 1;
+$page = $suqo->products->list(page: $n, pageSize: 50);
 
-while ($page->next !== null) {
+while (true) {
+    foreach ($page->results as $product) {
+        $this->upsert($product);
+    }
+
+    if ($page->next === null) {
+        break;
+    }
+
     // No public client method takes an absolute URL. Use autoPaging(),
-    // or bump `page:` yourself.
+    // or bump `page:` yourself — `next` only tells you there is one.
     $page = $suqo->products->list(page: ++$n, pageSize: 50);
 }
 ```
