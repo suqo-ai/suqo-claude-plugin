@@ -51,7 +51,7 @@ $params = new CreateSubscriptionParams(
 );
 
 // toWire() is public: inspect the exact body without making a request.
-if (getenv('APP_DEBUG')) {
+if (filter_var(getenv('APP_DEBUG'), FILTER_VALIDATE_BOOL)) {
     fwrite(STDERR, json_encode($params->toWire(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL);
 }
 

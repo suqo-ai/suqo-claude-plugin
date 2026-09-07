@@ -145,7 +145,7 @@ return static function (): SuqoClient {
 
     return $client ??= new SuqoClient(
         apiKey: (string) (getenv('SUQO_API_KEY') ?: ''),
-        logLevel: getenv('APP_DEBUG') ? 'debug' : 'warn',
+        logLevel: filter_var(getenv('APP_DEBUG'), FILTER_VALIDATE_BOOL) ? 'debug' : 'warn',
     );
 };
 ```

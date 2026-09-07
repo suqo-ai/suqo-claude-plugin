@@ -43,7 +43,8 @@ return static function (): SuqoClient {
             // worst case is three timeouts plus two backoffs.
             timeout: $timeout !== false && $timeout !== '' ? (float) $timeout : 10.0,
             maxRetries: $maxRetries !== false && $maxRetries !== '' ? (int) $maxRetries : 2,
-            logLevel: getenv('APP_DEBUG') ? 'debug' : 'warn',
+            // getenv() returns a string, and "false" is truthy — parse it as a bool.
+            logLevel: filter_var(getenv('APP_DEBUG'), FILTER_VALIDATE_BOOL) ? 'debug' : 'warn',
         );
     } catch (SuqoConfigError $e) {
         // Not a SuqoError — it extends \InvalidArgumentException.
