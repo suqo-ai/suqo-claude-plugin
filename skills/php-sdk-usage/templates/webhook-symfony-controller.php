@@ -6,9 +6,16 @@
  * Exclude the path from any firewall that would challenge an unauthenticated
  * POST, and from anything that reads the request body first.
  *
- * config/services.yaml:
- *   parameters:
- *       suqo.webhook_secret: '%env(SUQO_WEBHOOK_SECRET)%'
+ * A scalar constructor argument is not autowired: without the #[Autowire]
+ * attribute below (Symfony 6.1+) the container fails to compile with
+ * "Cannot autowire service ... argument $webhookSecret is type-hinted string".
+ * On older Symfony, or if you prefer YAML, drop the attribute and bind it in
+ * config/services.yaml instead:
+ *
+ *   services:
+ *       App\Controller\SuqoWebhookController:
+ *           arguments:
+ *               $webhookSecret: '%env(SUQO_WEBHOOK_SECRET)%'
  */
 
 declare(strict_types=1);
@@ -17,6 +24,7 @@ namespace App\Controller;
 
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -28,6 +36,7 @@ final class SuqoWebhookController extends AbstractController
     public function __construct(
         private readonly MessageBusInterface $bus,
         private readonly LoggerInterface $logger,
+        #[Autowire('%env(SUQO_WEBHOOK_SECRET)%')]
         private readonly string $webhookSecret,
     ) {
     }
