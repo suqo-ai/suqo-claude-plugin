@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "suqo-claude-plugin",
-      "description": "Skills and SDK usage guides for building apps on top of the SUQO PHP and TypeScript SDKs.",
+      "description": "Skills and SDK usage guides for building apps on top of the SUQO PHP SDK (TypeScript skill scaffolded, not yet usable).",
       "source": "./",
       "category": "sdk"
     }

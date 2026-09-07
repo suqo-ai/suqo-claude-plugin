@@ -1,6 +1,6 @@
 ---
 name: ts-sdk-usage
-description: Use this skill whenever a developer wants to build an app or feature using the SUQO TypeScript SDK — e.g. "build me a subscription app with SUQO", "add SUQO billing to my app", "scaffold a SUQO integration", or any request that involves the SUQO SDK. Teaches Claude how the SDK is structured, which reference doc to load for a given task, and how to scaffold a working app from it.
+description: Use this skill whenever a developer wants to build an app or feature using the SUQO TypeScript SDK — e.g. "build me a subscription app with SUQO", "add SUQO billing to my app", "scaffold a SUQO integration" in a TypeScript or Node project. Not for PHP — use php-sdk-usage for that. Teaches Claude how the SDK is structured, which reference doc to load for a given task, and how to scaffold a working app from it.
 ---
 
 # SUQO TypeScript SDK — Usage Skill
