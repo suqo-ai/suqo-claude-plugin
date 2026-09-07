@@ -22,12 +22,37 @@ public static function verifyWebhook(
     ?string $signature,
     ?string $timestamp,
     string $secret,
-    int $maxAge = 300,
+    int $maxAge = Constants::WEBHOOK_MAX_AGE,     // 300
 ): bool
 ```
 
 Readonly properties: `config` (`Config`), `products`, `subscriptions`,
 `customers`. The transport is private — there is no `request()` on the client.
+`verifyWebhook()` is a pure alias for `Webhook::verify()` below.
+
+## `Suqo\Webhook` — standalone, `final`, private constructor
+
+```php
+public static function verify(
+    string $rawBody,                              // the exact bytes received
+    ?string $signature,                           // X-Suqo-Signature header, null if absent
+    ?string $timestamp,                           // X-Suqo-Timestamp header, null if absent
+    string $secret,
+    int $maxAge = Constants::WEBHOOK_MAX_AGE,     // 300 s, backward tolerance only
+): bool                                           // never throws
+```
+
+No client, no API key, no network. Semantics in `webhooks.md`.
+
+## `Suqo\Config` — `final`, private constructor
+
+```php
+public static function resolve(...same six args as SuqoClient::__construct...): self   // throws SuqoConfigError
+```
+
+Public readonly properties: `string $apiKey`, `Environment $environment`,
+`string $baseUrl`, `float $timeout`, `int $maxRetries`, `LogLevel $logLevel`,
+`HttpClientInterface $httpClient`. Read them via `$suqo->config->…`.
 
 ## `Suqo\Resource\Products`
 
@@ -147,9 +172,10 @@ a 201. `CreateSubscriptionParams` and `UpdateBillingCycleParams` do not.
 
 ## Response types — `Suqo\Model\*`
 
-Every model has a private constructor plus `static fromWire(array $wire): self`,
-and inherits `toArray(): array` — the decoded payload with wire names intact.
-Never construct a model directly; read the one a method returned.
+Every model extends `abstract class Suqo\Model\Model`, whose only public method
+is `toArray(): array` — the decoded payload with wire names intact. Each record
+has a private constructor plus `static fromWire(array $wire): self`. Never
+construct a record directly; read the one a method returned.
 
 ```php
 Page             int $count, ?string $next, ?string $previous, array $results
@@ -183,13 +209,17 @@ enum Suqo\Model\SubscriptionStatus: string {
 `Subscription::$status` is typed `SubscriptionStatus|string|null` — a case when
 recognised, the raw string when not, `null` when absent.
 
-## Cancellation
+## `Suqo\Cancellation` — not `final`
 
 ```php
-Suqo\Cancellation::none(): self     // a fresh, never-cancelled token
-$token->cancel(): void              // one-way latch, idempotent
+new Cancellation()                   // public constructor; a fresh token
+Cancellation::none(): self           // identical — what every method uses for null
+$token->cancel(): void               // one-way latch, idempotent
 $token->isCancelled(): bool
 ```
+
+Either construction form is correct. The class may be subclassed (a
+deadline-based token, say).
 
 Pass `cancellation:` to any request method. Honoured before an attempt,
 mid-flight, during retry backoff, and at each page boundary. Raises
@@ -214,6 +244,16 @@ mid-flight, during retry backoff, and at each page boundary. Raises
 └── SuqoConfigError           bad config at construction — NOT a SuqoError
 ```
 
+The HTTP layer has its own pair, in `Suqo\Http\`, for a custom
+`HttpClientInterface` to throw. The transport maps them; nothing else should
+escape `send()`:
+
+```
+\RuntimeException
+└── Suqo\Http\HttpClientException          any transport failure, timeout included → NetworkError
+    └── Suqo\Http\HttpCancelledException   token fired mid-request → CancelledError (final)
+```
+
 `ErrorMapper::map(int $status, mixed $body, string $requestId, ?float $retryAfter = null): SuqoError`
 is public for a custom transport; it returns the error rather than throwing.
 
@@ -222,25 +262,58 @@ is public for a custom transport; it returns the error rather than throwing.
 Only reach for these when the task genuinely needs them.
 
 ```php
-Suqo\Config::resolve(...same six args as the client...): self     // private constructor
+// HTTP client seam
 Suqo\Http\HttpClientInterface::send(HttpRequest): HttpResponse    // the whole interface
 Suqo\Http\CurlHttpClient::__construct(array $curlOptions = [])
+Suqo\Http\CurlHttpClient::ABORTED_BY_CALLBACK = 42 | ::OPERATION_TIMEDOUT = 28   // cURL codes
 Suqo\Http\Psr18HttpClient::__construct(ClientInterface, RequestFactoryInterface, StreamFactoryInterface)
+Suqo\Http\HttpRequest::__construct(string $method, string $url, array $headers, ?string $body, float $timeout, Cancellation $cancellation)
+    // all six are public readonly properties; headers are already complete
 Suqo\Http\HttpResponse::__construct(int $status, array $headers, string $body)
-Suqo\Http\HttpResponse::header(string $name): ?string
+    // public readonly $status, $headers (names lower-cased), $body
+Suqo\Http\HttpResponse::header(string $name): ?string             // case-insensitive
+
+// Transport and friends — only for a custom resource
+Suqo\Http\Transport::__construct(Config, UrlBuilder, RetryPolicy, Logger, ?Closure $requestIdFactory = null)
 Suqo\Http\Transport::request(string $method, string $path, ?array $body = null, array $query = [], ?Cancellation = null): TransportResponse
 Suqo\Http\Transport::url(string $path, array $query = []): string
 Suqo\Http\Transport::getAbsolute(string $url, ?Cancellation = null): TransportResponse
-Suqo\Http\TransportResponse::object(): array
+Suqo\Http\TransportResponse                                        // public readonly int $status, mixed $body, array $headers, string $requestId
+Suqo\Http\TransportResponse::object(): array                       // body as wire object, [] if not one
+Suqo\Http\RetryPolicy::__construct(int $maxRetries, Logger, ?Closure $sleeper = null)
 Suqo\Http\RetryPolicy::execute(string $method, Cancellation, callable $attempt): mixed
 Suqo\Http\RetryPolicy::isEligible(string $method, SuqoError): bool
 Suqo\Http\RetryPolicy::computeDelayMs(int $attempt, SuqoError): int
+Suqo\Http\UrlBuilder::__construct(string $baseUrl)
 Suqo\Http\UrlBuilder::build(string $path, array $query = []): string
 Suqo\Pagination::autoPage(Transport, string $firstUrl, callable $factory, ?Cancellation = null): Generator
 Suqo\Endpoints::PRODUCTS | ::SUBSCRIPTIONS | ::SUBSCRIPTION_BILLING_CYCLE
 Suqo\Endpoints::subscriptionCancel(string $id): string
-Suqo\Constants::writesRetryable(): bool
+Suqo\Logging\Logger::__construct(LogLevel $level, $stream = null)  // stream defaults to php://stderr
 Suqo\Logging\Logger::debug|info|warn|error(string $event, array $context = []): void
+Suqo\Logging\Logger::level(): LogLevel
+```
+
+## `Suqo\Constants` — `final`, private constructor
+
+| Constant | Value |
+| --- | --- |
+| `LIVE_URL` / `SANDBOX_URL` | `https://be.suqo.ai` / `https://test-be.suqo.ai` |
+| `LIVE_KEY_PREFIX` / `SANDBOX_KEY_PREFIX` | `su_key_` / `su_test_key_` |
+| `ENV_API_KEY` / `ENV_LOG` | `SUQO_API_KEY` / `SUQO_LOG` |
+| `DEFAULT_TIMEOUT` | `30.0` |
+| `MAX_RETRIES` | `2` |
+| `BASE_DELAY_MS` / `FACTOR` / `MAX_DELAY_MS` | `500` / `2` / `8000` |
+| `RETRY_AFTER_CAP_MS` | `60000` |
+| `WRITES_RETRYABLE` | `false` |
+| `WEBHOOK_MAX_AGE` | `300` |
+| `WEBHOOK_FORWARD_SKEW` | `60` |
+| `MSG_MALFORMED_KEY` | the malformed-key message |
+| `MSG_NOT_IMPLEMENTED` | `customers API not yet available in this SDK version` |
+
+```php
+Suqo\Constants::writesRetryable(): bool
+Suqo\Constants::msgEnvConflict(Environment $inferred, Environment $given): string
 ```
 
 `Suqo\Model\Wire` (`nstr`, `str`, `decimal`, `nint`, `int`, `count`, `nbool`,
