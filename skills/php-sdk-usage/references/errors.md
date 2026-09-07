@@ -86,10 +86,12 @@ assume a valid client.
 }
 ```
 
-Keys are **wire** names (`pbp_id`, `client`, `billing_email`) because the body is
-reported as it arrived. Map them onto your form fields explicitly; do not show
-raw keys to a user. `getMessage()` is the first message in the body's own key
-order.
+Keys are **top-level wire** names (`pbp_id`, `client`, `billing_email`) because
+the body is reported as it arrived, and only string or list-of-string values are
+kept — a nested object (`{"client": {"full_name": [...]}}`) is dropped from
+`fieldErrors`, not flattened to `client.full_name`. Reach nested detail through
+`$e->rawBody`. Map keys onto your form fields explicitly; do not show raw keys
+to a user. `getMessage()` is the first message in the body's own key order.
 
 `fieldErrors` is populated **only** on a 400 with a field-shaped body. A 400
 whose body is `{"detail": "…"}` gives an empty `fieldErrors` and that string as

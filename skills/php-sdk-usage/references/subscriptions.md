@@ -61,16 +61,24 @@ the embedded read shape a subscription record carries.
 
 ## Wire names when a create fails
 
-`ValidationError::$fieldErrors` is keyed by **wire** name. Map before showing
-anything to a user:
+`ValidationError::$fieldErrors` is keyed by **top-level wire** name and holds
+only string or list-of-string values. Map before showing anything to a user:
 
 | Wire key in the error | What you passed |
 | --- | --- |
 | `pbp_id` | `pbpId` |
-| `client` | `customer` |
-| `client.full_name` | `customer->fullName` |
-| `client.billing.billing_email` | `customer->billing->billingEmail` |
+| `client` | `customer` — only when the server reports it as a flat string/list |
 | `return_url` | `returnUrl` |
+
+**Nested errors are not flattened.** If the server returns
+`{"client": {"full_name": ["Required."]}}`, the `client` value is an object, so
+it is dropped from `fieldErrors` — there is no `client.full_name` key, ever.
+Read nested detail from `$e->rawBody` instead:
+
+```php
+$customerErrors = $e->rawBody['client'] ?? [];          // wire-shaped, may be nested
+$nameProblems   = $customerErrors['full_name'] ?? [];
+```
 
 Inspect the exact body you are about to send, without a request:
 

@@ -55,8 +55,9 @@ Apply these without being asked — most bug reports against this SDK are one of
 - **Money and dates are strings.** `price`, `vat`, `totalSubscribers`, every
   timestamp. Never cast to `float`; use `bcmath` or an integer-minor-unit type.
 - **The SDK says `customer`, the wire says `client`.** You write
-  `customer:`, error bodies and `toArray()` say `client`. A `ValidationError`
-  naming `client.email` means your `CustomerInput` email.
+  `customer:`, error bodies and `toArray()` say `client`. `fieldErrors` holds
+  top-level keys only — a nested `client` error object is dropped from it and
+  lives in `$e->rawBody['client']`.
 - **Webhook verification needs the raw bytes.** The signature covers bytes, not
   structure. See the webhooks section below — this is the single most common
   broken handler.
