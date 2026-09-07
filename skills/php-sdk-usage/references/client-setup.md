@@ -124,11 +124,23 @@ services:
         arguments:
             $apiKey: '%env(SUQO_API_KEY)%'
             $timeout: 30.0
-            $logLevel: '%env(default:suqo_log:SUQO_LOG)%'
 ```
 
 Autowiring then injects it anywhere. The constructor's named parameters map
 directly onto Symfony's `$name` argument syntax.
+
+Leave `$logLevel` out: the SDK already falls back to `$SUQO_LOG`, then `warn`,
+and an unrecognised `$SUQO_LOG` value is ignored rather than fatal. Binding it
+as `'%env(SUQO_LOG)%'` would make an *unset* variable a container error.
+
+The webhook secret is a scalar the controller needs; bind it the same way (or
+with `#[Autowire]` — see `templates/webhook-symfony-controller.php`):
+
+```yaml
+    App\Controller\SuqoWebhookController:
+        arguments:
+            $webhookSecret: '%env(SUQO_WEBHOOK_SECRET)%'
+```
 
 ## Plain PHP and Slim
 

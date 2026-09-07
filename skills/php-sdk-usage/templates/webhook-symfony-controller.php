@@ -6,11 +6,15 @@
  * Exclude the path from any firewall that would challenge an unauthenticated
  * POST, and from anything that reads the request body first.
  *
- * A scalar constructor argument is not autowired: without the #[Autowire]
- * attribute below (Symfony 6.1+) the container fails to compile with
- * "Cannot autowire service ... argument $webhookSecret is type-hinted string".
- * On older Symfony, or if you prefer YAML, drop the attribute and bind it in
- * config/services.yaml instead:
+ * Targets Symfony 6.4+ / 7.x: Routing\Attribute\Route and the #[Autowire]
+ * attribute both exist there. On 6.1–6.3 import
+ * Symfony\Component\Routing\Annotation\Route instead; below 6.1 there is no
+ * #[Autowire], so use the YAML binding.
+ *
+ * A scalar constructor argument is not autowired: without #[Autowire] the
+ * container fails to compile with "Cannot autowire service ... argument
+ * $webhookSecret is type-hinted string". If you prefer YAML, drop the
+ * attribute and bind it in config/services.yaml instead:
  *
  *   services:
  *       App\Controller\SuqoWebhookController:
