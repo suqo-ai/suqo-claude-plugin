@@ -92,7 +92,10 @@ failure mode returns `false`.
 
 ```ts
 const secret = process.env.SUQO_WEBHOOK_SECRET;
-if (!secret) throw new Error("SUQO_WEBHOOK_SECRET is not set");   // fail closed, don't hand verify() undefined
+// verify() itself handles a missing secret fine (returns false, doesn't throw) — check it
+// explicitly anyway so a misconfigured deployment gets a distinct, loud signal instead of
+// blending into ordinary bad-signature noise.
+if (!secret) throw new Error("SUQO_WEBHOOK_SECRET is not set");
 
 const verified = suqo.webhooks.verify({
   rawBody,                                          // the exact bytes received — see below

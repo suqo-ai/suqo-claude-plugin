@@ -55,9 +55,9 @@ export async function POST(req: Request): Promise<Response> {
 
   const secret = process.env.SUQO_WEBHOOK_SECRET;
   if (!secret) {
-    // Fail closed with a clear signal rather than handing verify() an
-    // undefined secret — that's outside what its "never throws" guarantee
-    // covers (it's documented for malformed input, not a missing key).
+    // verify() itself handles this fine (returns false, doesn't throw) —
+    // checked explicitly anyway so a misconfigured deployment gets a
+    // distinct, loud signal instead of blending into bad-signature noise.
     console.error("SUQO_WEBHOOK_SECRET is not set");
     return new Response(null, { status: 500 });
   }

@@ -3,32 +3,44 @@
 ```
 Error
 └── SuqoError                 status?, rawBody?, requestId?   — never thrown directly itself
+    ├── SuqoConfigError       bad key/baseUrl at construction — thrown synchronously, before
+    │                         any request; never carries status/rawBody (there was no request)
     ├── AuthenticationError   401
     ├── KycRequiredError      403 — adds kycStatus?: string (wire status_code)
     ├── ValidationError       400 — adds fieldErrors: FieldErrors (Record<string, string[]>)
     ├── NotFoundError         404
     ├── RateLimitError        429 — adds retryAfter?: number (ms) — reserved, never thrown today
-    └── ServerError           5xx, and the default for any unmapped status
-
-SuqoConfigError                bad key/baseUrl at construction — NOT a SuqoError, thrown synchronously
-NetworkError                   no HTTP status at all — network failure, timeout, or cancellation
+    ├── ServerError           5xx, and the default for any unmapped status
+    └── NetworkError          no HTTP status at all — network failure, timeout, or cancellation
 ```
 
-`NetworkError` also extends `SuqoError` but carries no `status` — it's thrown
-directly by the HTTP layer itself (a `fetch` rejection or an
-`AbortSignal.timeout` firing), never via `mapHttpError`, since there was
-never a response to map. It covers both a genuine network failure and a
-timeout — there's no separate timeout class.
+**`SuqoConfigError` extends `SuqoError`** — `catch (err) { if (err instanceof
+SuqoError) ... }` catches it too. Every error this SDK throws is a
+`SuqoError`; the base class itself is just never thrown directly.
+
+`requestId` is declared on the base class and threaded through
+`mapHttpError`'s input type, but nothing in the real HTTP layer currently
+extracts one from a response header or body field — it's `undefined` on
+every error the SDK throws today. Don't build error-correlation/alerting
+logic keyed on it yet; the SDK's own source flags it as a pending
+nice-to-have, not a currently-working field.
+
+`NetworkError` carries no `status` — it's thrown directly by the HTTP layer
+itself (a `fetch` rejection or an `AbortSignal.timeout` firing), never via
+`mapHttpError`, since there was never a response to map. It covers both a
+genuine network failure and a timeout — there's no separate timeout class.
 
 Check `instanceof`, never the error's `message` string or the raw response
 shape — those carry no stability guarantee.
 
-## `SuqoConfigError` is not a `SuqoError`
+## `SuqoConfigError` — thrown at construction, not at request time
 
 Thrown synchronously from `new SuqoClient(...)`, before any request — bad API
 key format, or a `baseUrl` that disagrees with the key's inferred
-environment (see `client-setup.md`). A single handler that covers both
-startup misconfiguration and runtime API errors has to catch both types.
+environment (see `client-setup.md`). Since it's still a `SuqoError`, a broad
+`instanceof SuqoError` catch does cover it — the only reason to ever branch
+on it specifically is that it means "fix the deployment," not "handle this
+one request differently."
 
 ## `ValidationError` normalizes two wire shapes into one
 

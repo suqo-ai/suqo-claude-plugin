@@ -12,8 +12,11 @@ else, assume plain camelCase of the wire's snake_case (`product_id` →
 | `client` (top-level, on create/read) | `customer` | Collides with the SDK's own client object. **Only the root key** — nested fields under it keep their own wire-derived names (see the billing/shipping asymmetry in `subscriptions.md`). |
 | `Message` (schema name) | `MessageResponse` | Collides with `SuqoError.message`. |
 | `*Request` (schema names, e.g. `CreateSubscriptionRequest`) | `*Params` (`CreateSubscriptionParams`) | "Request" reads as an HTTP request object, which it isn't. |
+| `PaginationEnvelope` (schema name) | `Page` | Shorter, and matches what every list call actually returns. |
 
-Everything below this line is plain camelCase — no further renames.
+These four are the complete registered rename list (per the SDK's own
+`src/models/index.ts`) — everything below this line is plain camelCase, no
+further renames.
 
 ## `Product` / `Plan` / `BillingPeriod`
 

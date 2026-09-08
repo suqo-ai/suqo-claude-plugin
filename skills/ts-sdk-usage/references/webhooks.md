@@ -21,13 +21,19 @@ means building a `SuqoClient` first, which still requires a validly-shaped
 used by verification itself. Don't expect a key-free verification call
 without a `SuqoClient` in hand somewhere.
 
-**Never throws** — every failure mode (malformed signature, missing header,
-expired timestamp, an actual mismatch) returns `false`. Never treat a thrown
-error as the verification signal; there isn't one. That guarantee covers
-malformed *input*, not a missing `secret` — check
-`process.env.SUQO_WEBHOOK_SECRET` yourself and fail closed before calling
-`verify()` at all, the same way every template here does, rather than
-passing it through with a non-null assertion.
+**Never throws** — the source guards `signature`/`timestamp`/`secret`/
+`rawBody` all the same way and returns `false` for any of them being
+missing or the wrong type, malformed signature, expired timestamp, or an
+actual mismatch. Never treat a thrown error as the verification signal;
+there isn't one — this includes an absent `secret`, not just a bad
+signature.
+
+That said, every template here still checks `process.env.SUQO_WEBHOOK_SECRET`
+explicitly and fails closed *before* calling `verify()` at all — not because
+`verify()` would misbehave on a missing secret (it wouldn't), but because a
+missing-secret `false` and a genuine bad-signature `false` are otherwise
+indistinguishable, and a misconfigured deployment deserves a loud, distinct
+signal (log + 500) rather than blending into ordinary bad-signature noise.
 
 ## The raw-body rule — the single most-broken-handler cause
 
@@ -72,9 +78,10 @@ HMAC-SHA256(key = secret, message = "<timestamp>." + <raw body bytes>)
 ```
 
 Hex-encoded, sent as `X-SUQO-Signature: sha256=<hex>` alongside
-`X-SUQO-Timestamp: <unix seconds>`. `toleranceSec` (default 300) rejects a
-delivery whose timestamp is older than that, regardless of whether the
-signature itself is valid — replay protection, not just tamper detection.
+`X-SUQO-Timestamp: <unix seconds>`. The check is `|now - timestamp| >
+toleranceSec` — symmetric, so it rejects a timestamp too far in the future
+too, not just one that's stale — regardless of whether the signature itself
+is valid. Replay protection, not just tamper detection.
 
 ## Event payloads stay snake_case — on purpose
 
