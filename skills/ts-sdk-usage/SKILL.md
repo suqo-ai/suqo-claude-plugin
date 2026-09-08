@@ -1,44 +1,185 @@
 ---
 name: ts-sdk-usage
-description: Use this skill whenever a developer wants to build an app or feature using the SUQO TypeScript SDK — e.g. "build me a subscription app with SUQO", "add SUQO billing to my app", "scaffold a SUQO integration", or any request that involves the SUQO SDK. Teaches Claude how the SDK is structured, which reference doc to load for a given task, and how to scaffold a working app from it.
+description: Use for any TypeScript/Node work with the SUQO TS SDK (@suqo/sdk) — listing products, creating or cancelling subscriptions, resuming or moving a billing cycle, paging, verifying inbound webhooks, wiring the client into Express, Next.js, or plain Node, reading SUQO error responses, or testing code that calls the SDK. Provides exact method signatures so the SDK is never guessed at, and the raw-body rule that most broken webhook handlers get wrong.
 ---
 
-# SUQO TypeScript SDK — Usage Skill
+# SUQO TypeScript SDK — usage
 
-This skill teaches Claude how to use the `@suqo/sdk` TypeScript SDK to build apps for developers.
+`@suqo/sdk`, server-side only — it holds a full-access API key and must never
+be bundled into browser code. Node ≥18, zero runtime dependencies (`fetch`
+and `node:crypto` are both built in), strict TypeScript, dual ESM/CJS build.
 
-## When to use this skill
+**Not yet published.** `npm view @suqo/sdk` 404s against the real npm
+registry today (`package.json` is `0.0.1`; `specs/versioning.md`'s `1.0.0`
+row is "Pending — this ticket's release," not shipped). Don't write
+`npm install @suqo/sdk` as a working command — see `references/client-setup.md`
+for what actually works right now (installing from a local build/tarball).
 
-Trigger whenever the user asks to build, scaffold, or extend an app using the SUQO SDK, or asks how to do something with SUQO in TypeScript/Node.
+## Workflow
 
-## How to use this skill
+1. **Name the task** — checkout flow, subscription dashboard, webhook
+   endpoint, cancellation route, sync job.
+2. **Load only the reference you need** from `references/`. Never load them
+   all. `references/api-surface.md` is the authority on signatures; load it
+   before writing any SDK call.
+3. **Start from a template** in `templates/` when one is close, rather than
+   writing from scratch.
+4. **Write against documented methods only.** If a reference doesn't cover
+   something, say so — do not invent a method, parameter, or property. In
+   particular: there is no `subscriptions.retrieve(id)` at all;
+   `RateLimitError` exists but the live API has never thrown one;
+   rate-limiting and idempotency are both explicitly "planned," not
+   implemented, in the SDK's own docs.
+5. **Verify** — `tsc --noEmit` against the real SDK types, then the
+   project's own test/lint command. If a sandbox key is available, exercise
+   the code for real; otherwise say plainly that it was only typechecked,
+   not run against the API.
 
-1. **Identify the task** — what is the developer trying to build (e.g. a checkout flow, a subscription dashboard, a webhook handler)?
-2. **Load the relevant reference doc** from `references/` — do not load all references at once, only the ones relevant to the task, to keep context small. See the index below.
-3. **Check `templates/`** for a boilerplate snippet that's close to what's needed, and adapt it rather than writing from scratch.
-4. **Install the SDK** in the target project: `npm install @suqo/sdk` (adjust package name once published).
-5. **Write the code** using the SDK's documented methods only — do not guess at method names or signatures; if a reference doc doesn't cover something, say so rather than inventing an API.
-6. **Verify** — run `tsc --noEmit` (or the project's build) to confirm the generated code type-checks before handing it back.
+## The whole callable surface
+
+| Call | Returns |
+| --- | --- |
+| `new SuqoClient({ apiKey, baseUrl?, timeout?, maxRetries?, dispatcher? })` | `SuqoClient` |
+| `suqo.products.list(params?)` | `Page<Product>` |
+| `suqo.products.autoPaging(params?)` | `AsyncIterableIterator<Product>` |
+| `suqo.subscriptions.list(params?)` | `SubscriptionPage<Subscription>` |
+| `suqo.subscriptions.autoPaging(params?)` | `AsyncIterableIterator<Subscription>` |
+| `suqo.subscriptions.create(params)` | `CreateSubscriptionResponse` |
+| `suqo.subscriptions.cancel(id)` | `MessageResponse` |
+| `suqo.subscriptions.updateBillingCycle(params)` | `MessageResponse` |
+| `suqo.subscriptions.resume(id)` | `MessageResponse` |
+| `suqo.customers.list(params?)` / `.autoPaging()` / `.retrieve(id: number)` | `Page<Customer>` / iterator / `Customer` |
+| `suqo.webhooks.verify(options)` | `boolean` (never throws) |
+| `mapHttpError(input)` | `SuqoError` |
+
+There is no `subscriptions.retrieve()`. Everything above is the complete
+surface — `references/api-surface.md` lists exactly what's deliberately
+*not* exported too (internal client/auth stubs, the HTTP layer, every
+`serialize*`/`deserialize*` helper).
+
+## Rules that trip people up
+
+Apply these without being asked — most bugs against this SDK are one of them.
+
+- **Decimal fields are strings.** `price`, `vatPercentage`, `totalSubscribers`,
+  every amount. Never coerce to `number`.
+- **`customer` on the SDK is `client` on the wire** — renamed because
+  `client` collides with the SDK's own client object. Only the root key is
+  renamed; nested `billing.*` fields get a `billing_` wire prefix on write,
+  `shipping.*` fields don't, and neither is prefixed on read. See
+  `references/subscriptions.md` — this is the single easiest field-mapping
+  mistake in the SDK.
+- **Key-prefix order matters.** Check `su_test_key_` before `su_key_` when
+  inferring environment yourself; the SDK does, and a naive matcher that
+  checks `su_key_` first can misclassify a sandbox key.
+- **Trailing slash is mandatory** on every route the SDK calls — the SDK
+  handles this for you, but don't hand-build a URL to bypass it.
+- **Writes never auto-retry.** `create`, `cancel`, `updateBillingCycle`,
+  `resume` — none of them retry, ever, regardless of `maxRetries`. No
+  idempotency-key support exists yet. A `NetworkError` from a write means it
+  may or may not have landed; reconcile with `list()`, don't resend blindly.
+- **Two different 400 shapes exist** and `ValidationError` normalizes both —
+  field-keyed (`fieldErrors`) and `detail`-shaped (`message` only). See
+  `references/errors.md`.
+- **`customers` is real here, unlike its stub-only counterpart in other SUQO
+  SDKs' specs.** The SDK repo's own `specs/SDK-SPEC.md`/`typescript-addendum.md`
+  are stale on this point — source, tests, and `docs/user/customers.md` all
+  confirm it's a fully working resource. See `references/customers.md`.
+
+## Webhooks
+
+`suqo.webhooks.verify()` needs no network call and the API key plays no role
+in verification — but it's still a method on an already-constructed
+`SuqoClient` (there's no standalone export for it). **Never throws**; every
+failure mode returns `false`.
+
+```ts
+const verified = suqo.webhooks.verify({
+  rawBody,                                          // the exact bytes received — see below
+  signature: req.header("x-suqo-signature"),
+  timestamp: req.header("x-suqo-timestamp"),
+  secret: process.env.SUQO_WEBHOOK_SECRET!,
+  toleranceSec: 300,                                // optional, default 300
+});
+```
+
+### Pass the raw bytes
+
+A body re-serialized from a parse verifies only by luck. Per framework:
+
+```ts
+// Express: express.raw() scoped to just this route, never mounted globally
+router.post("/webhooks/suqo", express.raw({ type: "application/json" }), handler);
+
+// Next.js App Router
+const rawBody = await req.text();
+
+// Plain Node — buffer the chunks yourself before parsing anything
+```
+
+### Handler checklist
+
+1. Read the raw body **first**, before any parsing.
+2. Verify, and on `false` return `400` and stop. Don't parse, don't process.
+3. Parse only after verifying.
+4. Return `2xx` fast, then process out of band — a slow handler gets
+   retried and duplicated.
+5. Be idempotent, keyed on the event's own id or the subscription id.
+   Redelivery is normal; there's no replay store.
+
+Exact signed-payload format, the event type catalogue (stays snake_case on
+purpose), and the dashboard's test-event quirk are in
+`references/webhooks.md`.
 
 ## Reference index
 
-Add one entry per reference file as they're written, e.g.:
-
-| Reference file | Covers |
-|---|---|
-| `references/client-setup.md` | Initializing the SDK client, auth/config |
-| `references/products-plans.md` | Creating products, plans, billing cycles |
-| `references/subscriptions.md` | Managing subscriptions, customers |
-| `references/webhooks.md` | Handling SUQO webhook events |
+| Reference | Load when |
+| --- | --- |
+| `references/api-surface.md` | Writing any SDK call — exact signatures, exports, and what's deliberately not public. Load first. |
+| `references/client-setup.md` | Constructing the client, environment inference, the not-yet-published install story, framework wiring. |
+| `references/products.md` | Listing products/plans, pagination, the pbpId chain into subscriptions. |
+| `references/subscriptions.md` | Create, cancel, billing-cycle, resume flows; the customer/client wire rename and its billing-prefix asymmetry. |
+| `references/customers.md` | The real (not stub) customers resource; the integer id exception. |
+| `references/webhooks.md` | Verification semantics, signed-payload format, event catalogue. |
+| `references/errors.md` | Error hierarchy, retry rules, mapping to HTTP responses. |
+| `references/models.md` | Property tables for every model, and the short list of wire↔SDK renames. |
 
 ## Templates index
 
 | Template | Use for |
-|---|---|
-| `templates/basic-client.ts` | Minimal SDK client setup |
-| `templates/express-webhook-handler.ts` | Example webhook receiver |
+| --- | --- |
+| `templates/suqo-client.ts` | Lazy, guarded singleton client factory. |
+| `templates/list-products.ts` | `autoPaging` read down to a billing period's `pbpId`. |
+| `templates/create-subscription.ts` | Full nested `create()` with the error ladder. |
+| `templates/manage-subscription.ts` | `cancel`/`updateBillingCycle`/`resume` with the same error ladder. |
+| `templates/webhook-plain-node.ts` | No-framework webhook endpoint. |
+| `templates/webhook-express.ts` | Express route with `express.raw()` scoped correctly. |
+| `templates/webhook-nextjs-route.ts` | Next.js App Router route handler. |
 
-## Notes
+## Testing SDK code
 
-- Keep `references/` chunked by topic (one file per SDK area) so Claude loads only what's relevant instead of the whole SDK doc at once.
-- Update this SKILL.md's index tables whenever a reference or template is added.
+The seam is `dispatcher` on `SuqoClientOptions` — the SDK's internal HTTP
+layer forwards it into every `fetch()` call unchanged:
+
+```ts
+import { MockAgent, setGlobalDispatcher } from "undici";
+
+const mockAgent = new MockAgent();
+setGlobalDispatcher(mockAgent);
+mockAgent.disableNetConnect();
+
+const suqo = new SuqoClient({
+  apiKey: "su_test_key_abc",
+  dispatcher: mockAgent.get("https://test-be.suqo.ai"),
+});
+```
+
+Every layer above the network — the auth header, retry/backoff, error
+mapping, pagination — still runs for real; only the response bytes are
+faked. `msw` is the alternative the SDK's own `test/contract/` suite uses
+(route/URL-level interception) if you'd rather not depend on undici
+specifics.
+
+Never mock `SuqoClient` or a resource directly — mocking the thing under
+test tests the mock instead of the integration, the same rule PHP's skill
+holds to for `HttpClientInterface`.
