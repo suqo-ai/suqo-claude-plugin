@@ -69,8 +69,9 @@ Malformed SUQO API key: expected prefix "su_key_" (live) or "su_test_key_" (sand
 Environment mismatch: key implies <url> but baseUrl was set to <url>. Remove baseUrl or use a matching key.
 ```
 
-`SuqoConfigError` is not a `SuqoError` — the same "catch both in one handler"
-rule PHP's client needs applies here too (see `errors.md`).
+`SuqoConfigError` extends `SuqoError` (see `errors.md`) — it just fires at a
+different time than every other error: synchronously, at construction,
+before any request has been made.
 
 ## Auth header
 

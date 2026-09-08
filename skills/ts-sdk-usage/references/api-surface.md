@@ -88,8 +88,9 @@ retrieve(id: number): Promise<Customer>                 // GET /api/v1/customers
 
 Read-only — no create/update/delete; a customer record is created implicitly
 the first time someone subscribes. This is a real, working, tested resource
-(`test/contract/requestShape.test.ts` exercises all three methods against a
-mock server). **`specs/SDK-SPEC.md` §11 and `docs/typescript-addendum.md` §6
+(`test/contract/requestShape.test.ts` covers `list`/`retrieve` against a mock
+server; `test/resources/customers.test.ts` covers `autoPaging` separately).
+**`specs/SDK-SPEC.md` §11 and `docs/typescript-addendum.md` §6
 in the SDK repo both still describe this resource as an unimplemented stub
 that throws — that is stale.** Source, tests, `docs/user/customers.md`, and
 `examples/list-customers.ts` all agree it's real; treat those as ground

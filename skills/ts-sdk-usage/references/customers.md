@@ -17,10 +17,10 @@ repo both still describe this resource as an unimplemented stub** — the spec
 says every method "throws `SuqoError(\"customers API not yet available in
 this SDK version\")`". **That is stale.** The real
 `src/resources/customers.ts` implements all three methods for real, hitting
-the endpoints above; `test/resources/customers.test.ts` and
-`test/contract/requestShape.test.ts` both exercise it end-to-end against a
-mock server; `docs/user/customers.md` and `examples/list-customers.ts` both
-describe and use it as fully working. Treat source + tests + `docs/user/` as
+the endpoints above; `test/contract/requestShape.test.ts` exercises
+`list`/`retrieve` against a mock server and `test/resources/customers.test.ts`
+covers `autoPaging` separately; `docs/user/customers.md` and
+`examples/list-customers.ts` both describe and use it as fully working. Treat source + tests + `docs/user/` as
 ground truth for this resource — the spec and addendum simply haven't caught
 up to the implementation yet.
 
