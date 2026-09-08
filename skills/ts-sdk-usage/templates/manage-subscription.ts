@@ -1,14 +1,4 @@
-import {
-  AuthenticationError,
-  KycRequiredError,
-  NetworkError,
-  NotFoundError,
-  RateLimitError,
-  ServerError,
-  SuqoConfigError,
-  ValidationError,
-  type MessageResponse,
-} from "@suqo/sdk";
+import type { MessageResponse } from "@suqo/sdk";
 import { getSuqoClient } from "./suqo-client.js";
 
 /** Schedules cancellation at the end of the current billing period — not immediate. */
@@ -39,41 +29,11 @@ export async function resumeSubscription(subscriptionId: string): Promise<Messag
 }
 
 /**
- * Same error ladder as templates/create-subscription.ts, including the same
- * KycRequiredError/AuthenticationError-are-not-the-caller's-fault handling —
- * none of cancel/updateBillingCycle/resume are exempt from either. None of
- * the three retry automatically — a NetworkError means the write may or may
- * not have landed; reconcile with subscriptions.list().
+ * The shared write error ladder from templates/subscription-error-handling.ts
+ * — the same one templates/create-subscription.ts uses, so cancel/
+ * updateBillingCycle/resume get identical error handling to create instead of
+ * a second hand-maintained copy. None of the three retry automatically — a
+ * NetworkError means the write may or may not have landed; reconcile with
+ * subscriptions.list().
  */
-export async function withSubscriptionErrorHandling<T>(
-  operation: () => Promise<T>,
-): Promise<{ status: number; body: unknown }> {
-  try {
-    const body = await operation();
-    return { status: 200, body };
-  } catch (err) {
-    if (err instanceof ValidationError) {
-      return { status: 422, body: { message: err.message, fieldErrors: err.fieldErrors } };
-    }
-    if (err instanceof NotFoundError) {
-      return { status: 404, body: { message: err.message } };
-    }
-    if (err instanceof KycRequiredError || err instanceof AuthenticationError) {
-      console.error("SUQO merchant configuration problem:", err);
-      return { status: 500, body: { message: "Something went wrong. Please try again later." } };
-    }
-    if (err instanceof RateLimitError) {
-      return { status: 429, body: { message: err.message, retryAfter: err.retryAfter } };
-    }
-    if (err instanceof ServerError) {
-      return { status: 502, body: { message: "SUQO is temporarily unavailable." } };
-    }
-    if (err instanceof NetworkError) {
-      return { status: 504, body: { message: "Could not reach SUQO." } };
-    }
-    if (err instanceof SuqoConfigError) {
-      throw err;
-    }
-    throw err;
-  }
-}
+export { handleSubscriptionWrite as withSubscriptionErrorHandling } from "./subscription-error-handling.js";

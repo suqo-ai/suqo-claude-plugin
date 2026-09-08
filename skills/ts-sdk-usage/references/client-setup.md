@@ -53,10 +53,11 @@ Key prefix decides everything:
 | `su_test_key_` | sandbox | `https://test-be.suqo.ai` |
 | `su_key_` | live | `https://be.suqo.ai` |
 
-**Check `su_test_key_` before `su_key_`.** The SDK's own spec calls this out
-explicitly: "the live prefix is a substring consideration for naive
-matchers" — get the order wrong in your own code and a sandbox key can
-misclassify as live.
+This inference happens entirely inside the SDK — you never write this match
+yourself. Internally it checks with `String.prototype.startsWith`, and
+`"su_test_key_..."` does not start with `"su_key_"` (nor contain it as a
+substring), so there's no actual collision between the two prefixes to worry
+about either way.
 
 `baseUrl` is a check that can only agree or throw, exactly like PHP's
 `environment:` parameter — it is never a way to redirect a key to some other

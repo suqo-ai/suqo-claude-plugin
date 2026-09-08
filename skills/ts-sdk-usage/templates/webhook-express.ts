@@ -19,12 +19,17 @@ router.post("/webhooks/suqo", express.raw({ type: "application/json" }), (req, r
     return;
   }
 
-  const verified = getSuqoClient().webhooks.verify({
-    rawBody,
-    signature,
-    timestamp,
-    secret: process.env.SUQO_WEBHOOK_SECRET!,
-  });
+  const secret = process.env.SUQO_WEBHOOK_SECRET;
+  if (!secret) {
+    // Fail closed with a clear signal rather than handing verify() an
+    // undefined secret — that's outside what its "never throws" guarantee
+    // covers (it's documented for malformed input, not a missing key).
+    console.error("SUQO_WEBHOOK_SECRET is not set");
+    res.sendStatus(500);
+    return;
+  }
+
+  const verified = getSuqoClient().webhooks.verify({ rawBody, signature, timestamp, secret });
 
   if (!verified) {
     res.sendStatus(400);

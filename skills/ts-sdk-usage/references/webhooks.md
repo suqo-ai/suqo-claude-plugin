@@ -23,7 +23,11 @@ without a `SuqoClient` in hand somewhere.
 
 **Never throws** — every failure mode (malformed signature, missing header,
 expired timestamp, an actual mismatch) returns `false`. Never treat a thrown
-error as the verification signal; there isn't one.
+error as the verification signal; there isn't one. That guarantee covers
+malformed *input*, not a missing `secret` — check
+`process.env.SUQO_WEBHOOK_SECRET` yourself and fail closed before calling
+`verify()` at all, the same way every template here does, rather than
+passing it through with a non-null assertion.
 
 ## The raw-body rule — the single most-broken-handler cause
 
@@ -134,7 +138,12 @@ events.
    body as trusted, don't process.
 3. Parse (`JSON.parse(rawBody)`) only after verifying.
 4. Return `2xx` fast, then process out of band. A slow handler gets retried
-   and duplicated.
+   and duplicated. **On a serverless/edge runtime** (Vercel, Lambda, ...)
+   fire-and-forget is unsafe — the function can be frozen the instant the
+   response is sent, silently dropping work that wasn't awaited or handed to
+   the platform's own keep-alive (`after()`, `waitUntil`). A long-running
+   Node/Express process doesn't have this problem. See
+   `templates/webhook-nextjs-route.ts` vs `templates/webhook-express.ts`.
 5. Be idempotent — key on `api_key_id` (for the `api_key.*` events) or
    `subscription_id` (for `checkout.*`/`subscription.status_changed`) and
    treat a repeat delivery as a no-op. Redelivery is normal; the SDK keeps no
