@@ -1,9 +1,11 @@
 import {
   AuthenticationError,
+  KycRequiredError,
   NetworkError,
   NotFoundError,
   RateLimitError,
   ServerError,
+  SuqoConfigError,
   ValidationError,
   type MessageResponse,
 } from "@suqo/sdk";
@@ -37,9 +39,11 @@ export async function resumeSubscription(subscriptionId: string): Promise<Messag
 }
 
 /**
- * Same error ladder as templates/create-subscription.ts. None of
- * cancel/updateBillingCycle/resume retry automatically — a NetworkError means
- * the write may or may not have landed; reconcile with subscriptions.list().
+ * Same error ladder as templates/create-subscription.ts, including the same
+ * KycRequiredError/AuthenticationError-are-not-the-caller's-fault handling —
+ * none of cancel/updateBillingCycle/resume are exempt from either. None of
+ * the three retry automatically — a NetworkError means the write may or may
+ * not have landed; reconcile with subscriptions.list().
  */
 export async function withSubscriptionErrorHandling<T>(
   operation: () => Promise<T>,
@@ -51,11 +55,12 @@ export async function withSubscriptionErrorHandling<T>(
     if (err instanceof ValidationError) {
       return { status: 422, body: { message: err.message, fieldErrors: err.fieldErrors } };
     }
-    if (err instanceof AuthenticationError) {
-      return { status: 401, body: { message: "SUQO rejected this API key." } };
-    }
     if (err instanceof NotFoundError) {
       return { status: 404, body: { message: err.message } };
+    }
+    if (err instanceof KycRequiredError || err instanceof AuthenticationError) {
+      console.error("SUQO merchant configuration problem:", err);
+      return { status: 500, body: { message: "Something went wrong. Please try again later." } };
     }
     if (err instanceof RateLimitError) {
       return { status: 429, body: { message: err.message, retryAfter: err.retryAfter } };
@@ -65,6 +70,9 @@ export async function withSubscriptionErrorHandling<T>(
     }
     if (err instanceof NetworkError) {
       return { status: 504, body: { message: "Could not reach SUQO." } };
+    }
+    if (err instanceof SuqoConfigError) {
+      throw err;
     }
     throw err;
   }

@@ -93,14 +93,32 @@ interface SubscriptionStatusChangedEvent {
   event: "subscription.status_changed"; subscription_id: string;
   previous_status: SubscriptionStatus; current_status: SubscriptionStatus; changed_at: string;
 }
-interface ApiKeyCreatedEvent { event: "api_key.created"; api_key_id: string; name: string; masked_key: string; expires_at: string; created_at: string; }
-interface ApiKeyDeletedEvent extends ApiKeyCreatedEvent-base { event: "api_key.deleted"; deleted_at: string; }
-interface ApiKeyExpiredEvent { event: "api_key.expired"; /* ...same base fields */ }
-interface ApiKeyExpiringSoonEvent { event: "api_key.expiring_soon"; /* ...same base fields */ }
+
+// Every api_key.* event shares these four fields plus its own event name and timestamp field.
+// api_key_id is a string on the wire (e.g. "305") — never coerce it, same rule as every other id.
+interface ApiKeyCreatedEvent {
+  event: "api_key.created"; api_key_id: string; name: string; masked_key: string;
+  expires_at: string;  // "YYYY-MM-DD", date-only
+  created_at: string;  // ISO 8601
+}
+interface ApiKeyDeletedEvent {
+  event: "api_key.deleted"; api_key_id: string; name: string; masked_key: string;
+  expires_at: string; created_at: string; deleted_at: string;  // ISO 8601
+}
+interface ApiKeyExpiredEvent {
+  event: "api_key.expired"; api_key_id: string; name: string; masked_key: string;
+  expires_at: string; created_at: string;
+}
+interface ApiKeyExpiringSoonEvent {
+  event: "api_key.expiring_soon"; api_key_id: string; name: string; masked_key: string;
+  expires_at: string; created_at: string;
+}
 ```
 
 `amount` stays a string, same decimal rule as everywhere else. `event` is
 the discriminant — narrow on it, not on which fields happen to be present.
+There is no field literally named `id` on any of these — the identifier is
+always `subscription_id` (first three events) or `api_key_id` (last four).
 
 **Dashboard "send test event" payloads nest fields under a `data` key** —
 different from the real shapes above. Use test deliveries to confirm your
@@ -117,8 +135,8 @@ events.
 3. Parse (`JSON.parse(rawBody)`) only after verifying.
 4. Return `2xx` fast, then process out of band. A slow handler gets retried
    and duplicated.
-5. Be idempotent — key on the event's own id (for the `api_key.*` events) or
-   the `subscription_id` (for `checkout.*`/`subscription.status_changed`) and
+5. Be idempotent — key on `api_key_id` (for the `api_key.*` events) or
+   `subscription_id` (for `checkout.*`/`subscription.status_changed`) and
    treat a repeat delivery as a no-op. Redelivery is normal; the SDK keeps no
    replay store of its own.
 6. Never echo the body back, and never treat a field inside it as an

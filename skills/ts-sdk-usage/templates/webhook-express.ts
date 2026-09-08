@@ -6,7 +6,9 @@ export const router = express.Router();
 
 // express.raw() is scoped to just THIS route — every other route on this app
 // keeps its normal express.json() parsing untouched. Mounting it globally is
-// the single most common way to break this handler.
+// the single most common way to break this handler. It also caps the body at
+// 100kb by default (pass { limit: "..." } to change it) — unlike the plain
+// Node / Next.js templates, which have to enforce that themselves.
 router.post("/webhooks/suqo", express.raw({ type: "application/json" }), (req, res) => {
   const rawBody = req.body as Buffer; // the raw bytes, thanks to express.raw() above
   const signature = req.header("x-suqo-signature");
@@ -38,6 +40,8 @@ router.post("/webhooks/suqo", express.raw({ type: "application/json" }), (req, r
 });
 
 async function processEvent(event: WebhookEvent): Promise<void> {
+  // Be idempotent — key on subscription_id (or api_key_id for api_key.* events);
+  // redelivery is normal, the SDK keeps no replay store of its own.
   switch (event.event) {
     case "checkout.succeeded":
       console.log("checkout succeeded", event.subscription_id, event.amount);

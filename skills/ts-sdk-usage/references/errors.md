@@ -54,6 +54,19 @@ The wire sends one of two 400 shapes:
 403 with a KYC-shaped body (`{ "status_code": "<kyc status>", "message":
 "..." }`). `kycStatus` is read from that `status_code`.
 
+## `AuthenticationError` and `KycRequiredError` are merchant-config problems, not buyer input problems
+
+Both mean something is wrong with *your own* SUQO setup — the merchant's API
+key is invalid/revoked, or the merchant's own KYC isn't complete — never
+something the end buyer did. In an API route that ends up returning a
+response to a buyer's browser, don't map these straight to a 401/403 sent to
+the buyer, and don't leak `kycStatus` into that response: it describes your
+account's standing, not theirs. Log it loudly for your own alerting instead,
+and return a generic 5xx to the caller — the same distinction PHP's skill
+draws for the identical error classes. `ValidationError`/`NotFoundError` are
+the ones that are genuinely about the specific request and are safe to
+reflect back.
+
 ## `RateLimitError` — reserved, not live yet
 
 429 with `retryAfter?: number` (milliseconds, parsed from a `Retry-After`
