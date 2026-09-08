@@ -65,7 +65,10 @@ async function handleWebhook(req: IncomingMessage, res: ServerResponse): Promise
 
   // Parse only AFTER verifying. Event payloads stay snake_case on purpose.
   const event = JSON.parse(rawBody.toString("utf8")) as WebhookEvent;
-  void processEvent(event);
+  // .catch(), not bare fire-and-forget — an uncaught rejection here would
+  // crash the whole process (Node terminates on unhandled rejection by
+  // default) over a single bad event, taking down every other in-flight request.
+  processEvent(event).catch((err: unknown) => console.error("processEvent failed:", err));
 }
 
 async function processEvent(event: WebhookEvent): Promise<void> {

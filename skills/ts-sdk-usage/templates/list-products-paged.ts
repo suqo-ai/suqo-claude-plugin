@@ -19,13 +19,18 @@ export interface ProductsPageResult {
  * references/pagination.md for when to reach for each.
  */
 export async function getProductsPage(page: number, pageSize = PAGE_SIZE): Promise<ProductsPageResult> {
+  // The `= PAGE_SIZE` default only covers `undefined` — an explicit 0 (or a
+  // negative value) would otherwise divide-by-zero below, so it's clamped
+  // here regardless of how the caller got there.
+  const effectivePageSize = pageSize > 0 ? pageSize : PAGE_SIZE;
+
   const suqo = getSuqoClient();
-  const result: Page<Product> = await suqo.products.list({ page, pageSize });
+  const result: Page<Product> = await suqo.products.list({ page, pageSize: effectivePageSize });
 
   return {
     products: result.results,
     page,
-    pageCount: Math.max(1, Math.ceil(result.count / pageSize)),
+    pageCount: Math.max(1, Math.ceil(result.count / effectivePageSize)),
     hasNext: result.next !== null,
     hasPrevious: result.previous !== null,
   };
