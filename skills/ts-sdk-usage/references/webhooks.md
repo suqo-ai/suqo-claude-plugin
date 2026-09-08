@@ -12,11 +12,18 @@ interface VerifyWebhookOptions {
 }
 ```
 
-Standalone: no client, no API key, no network call. Safe to call from a
-serverless function with nothing else configured. **Never throws** — every
-failure mode (malformed signature, missing header, expired timestamp, an
-actual mismatch) returns `false`. Never treat a thrown error as the
-verification signal; there isn't one.
+`verify()` itself makes no network call, and the API key plays no role in the
+verification logic. **But it's still a method on an already-constructed
+`SuqoClient`** — `WebhooksResource` isn't exported for standalone
+construction (see `api-surface.md`), so reaching `suqo.webhooks.verify(...)`
+means building a `SuqoClient` first, which still requires a validly-shaped
+`apiKey` (throws `SuqoConfigError` otherwise) even though that key is never
+used by verification itself. Don't expect a key-free verification call
+without a `SuqoClient` in hand somewhere.
+
+**Never throws** — every failure mode (malformed signature, missing header,
+expired timestamp, an actual mismatch) returns `false`. Never treat a thrown
+error as the verification signal; there isn't one.
 
 ## The raw-body rule — the single most-broken-handler cause
 
