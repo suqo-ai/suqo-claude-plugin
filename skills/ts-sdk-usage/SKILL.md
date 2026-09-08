@@ -69,9 +69,6 @@ Apply these without being asked — most bugs against this SDK are one of them.
   `shipping.*` fields don't, and neither is prefixed on read. See
   `references/subscriptions.md` — this is the single easiest field-mapping
   mistake in the SDK.
-- **Key-prefix order matters.** Check `su_test_key_` before `su_key_` when
-  inferring environment yourself; the SDK does, and a naive matcher that
-  checks `su_key_` first can misclassify a sandbox key.
 - **Trailing slash is mandatory** on every route the SDK calls — the SDK
   handles this for you, but don't hand-build a URL to bypass it.
 - **Writes never auto-retry.** `create`, `cancel`, `updateBillingCycle`,
@@ -94,11 +91,14 @@ in verification — but it's still a method on an already-constructed
 failure mode returns `false`.
 
 ```ts
+const secret = process.env.SUQO_WEBHOOK_SECRET;
+if (!secret) throw new Error("SUQO_WEBHOOK_SECRET is not set");   // fail closed, don't hand verify() undefined
+
 const verified = suqo.webhooks.verify({
   rawBody,                                          // the exact bytes received — see below
   signature: req.header("x-suqo-signature"),
   timestamp: req.header("x-suqo-timestamp"),
-  secret: process.env.SUQO_WEBHOOK_SECRET!,
+  secret,
   toleranceSec: 300,                                // optional, default 300
 });
 ```
@@ -123,9 +123,17 @@ const rawBody = await req.text();
 2. Verify, and on `false` return `400` and stop. Don't parse, don't process.
 3. Parse only after verifying.
 4. Return `2xx` fast, then process out of band — a slow handler gets
-   retried and duplicated.
-5. Be idempotent, keyed on the event's own id or the subscription id.
-   Redelivery is normal; there's no replay store.
+   retried and duplicated. **On a serverless/edge runtime** (Vercel, Lambda,
+   ...) that pattern is unsafe: the function can be frozen the instant the
+   response is sent, silently dropping unawaited work — `await` the
+   processing there instead, or use the platform's own keep-alive
+   (`after()`, `waitUntil`). See `templates/webhook-nextjs-route.ts`.
+5. Be idempotent, keyed on `subscription_id` (checkout/status events) or
+   `api_key_id` (`api_key.*` events) — no event has a field literally named
+   `id`. Redelivery is normal; there's no replay store.
+6. Never echo the body back, and never treat a field inside it as an
+   authorization decision on its own — verification confirms it came from
+   SUQO, not that its contents are safe to act on blindly.
 
 Exact signed-payload format, the event type catalogue (stays snake_case on
 purpose), and the dashboard's test-event quirk are in
@@ -150,8 +158,9 @@ purpose), and the dashboard's test-event quirk are in
 | --- | --- |
 | `templates/suqo-client.ts` | Lazy, guarded singleton client factory. |
 | `templates/list-products.ts` | `autoPaging` read down to a billing period's `pbpId`. |
-| `templates/create-subscription.ts` | Full nested `create()` with the error ladder. |
-| `templates/manage-subscription.ts` | `cancel`/`updateBillingCycle`/`resume` with the same error ladder. |
+| `templates/subscription-error-handling.ts` | The shared write error ladder used by both templates below. |
+| `templates/create-subscription.ts` | Full nested `create()`. |
+| `templates/manage-subscription.ts` | `cancel`/`updateBillingCycle`/`resume`. |
 | `templates/webhook-plain-node.ts` | No-framework webhook endpoint. |
 | `templates/webhook-express.ts` | Express route with `express.raw()` scoped correctly. |
 | `templates/webhook-nextjs-route.ts` | Next.js App Router route handler. |

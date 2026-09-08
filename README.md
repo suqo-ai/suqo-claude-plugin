@@ -48,9 +48,9 @@ suqo-claude-plugin/
       SKILL.md
       references/         # api-surface, client-setup, products, subscriptions,
                           #   customers, webhooks, errors, models
-      templates/          # client factory, list-products, create-subscription,
-                          #   manage-subscription, webhook handlers (plain Node,
-                          #   Express, Next.js)
+      templates/          # client factory, list-products, shared error ladder,
+                          #   create-subscription, manage-subscription,
+                          #   webhook handlers (plain Node, Express, Next.js)
   README.md
 ```
 

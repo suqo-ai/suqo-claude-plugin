@@ -53,12 +53,16 @@ export async function POST(req: Request): Promise<Response> {
     return new Response(null, { status: 400 });
   }
 
-  const verified = getSuqoClient().webhooks.verify({
-    rawBody,
-    signature,
-    timestamp,
-    secret: process.env.SUQO_WEBHOOK_SECRET!,
-  });
+  const secret = process.env.SUQO_WEBHOOK_SECRET;
+  if (!secret) {
+    // Fail closed with a clear signal rather than handing verify() an
+    // undefined secret — that's outside what its "never throws" guarantee
+    // covers (it's documented for malformed input, not a missing key).
+    console.error("SUQO_WEBHOOK_SECRET is not set");
+    return new Response(null, { status: 500 });
+  }
+
+  const verified = getSuqoClient().webhooks.verify({ rawBody, signature, timestamp, secret });
 
   if (!verified) {
     return new Response(null, { status: 400 });
@@ -66,9 +70,16 @@ export async function POST(req: Request): Promise<Response> {
 
   // Parse only AFTER verifying. Event payloads stay snake_case on purpose.
   const event = JSON.parse(rawBody) as WebhookEvent;
-  void processEvent(event);
 
-  // Return 2xx fast, then process out of band — a slow handler gets retried and duplicated.
+  // Awaited, unlike the plain-Node/Express templates' fire-and-forget: on a
+  // serverless/edge runtime (e.g. Vercel), the function can be frozen the
+  // instant this handler returns, silently dropping unawaited work. A
+  // long-running Node/Express server doesn't have that problem, so it can
+  // return the 2xx first. If processEvent() ever becomes slow, reach for a
+  // queue or Next.js's `after()` (or the platform's own waitUntil) instead
+  // of going back to fire-and-forget here.
+  await processEvent(event);
+
   return new Response(null, { status: 200 });
 }
 
