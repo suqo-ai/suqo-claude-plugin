@@ -101,8 +101,12 @@ blindly-retried write could double-act, e.g. create a duplicate subscription.
 A `NetworkError` from a write means it may or may not have landed; reconcile
 by re-listing, don't just resend the same call.
 
-A caller-supplied `AbortSignal` cancellation is never retried either, even on
-an otherwise-retryable read — the SDK treats "the caller said stop" as final.
+Internally, a caller-supplied `AbortSignal` is never retried either, even on
+an otherwise-retryable read — but this is describing the internal HTTP
+layer's own behavior, not a publicly reachable option: no public resource
+method (`list`, `create`, etc.) actually accepts a `signal`. See
+`pagination.md` for what that means in practice — there's currently no
+supported way to cancel an in-flight call from application code.
 
 ## `mapHttpError`
 

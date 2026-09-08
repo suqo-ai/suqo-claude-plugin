@@ -206,6 +206,13 @@ module realms. `undici`'s own `setGlobalDispatcher(mockAgent)` (not the
 per-call option) is cross-realm-safe if you want that layer specifically,
 but `vi.stubGlobal` is simpler and needs nothing extra installed.
 
+## Notes for maintainers
+
+Update the Reference index and Templates index tables above whenever a
+file is added to `references/` or `templates/` — this skill's own history
+has already drifted out of sync with itself more than once from a table
+edit getting missed.
+
 Never mock `SuqoClient` or a resource directly — mocking the thing under
 test tests the mock instead of the integration, the same rule PHP's skill
 holds to for `HttpClientInterface`.
