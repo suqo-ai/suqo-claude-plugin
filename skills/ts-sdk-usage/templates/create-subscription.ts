@@ -1,6 +1,6 @@
 import {
-  AuthenticationError,
   KycRequiredError,
+  AuthenticationError,
   NetworkError,
   NotFoundError,
   RateLimitError,
@@ -8,15 +8,9 @@ import {
   SuqoConfigError,
   ValidationError,
   type CreateSubscriptionResponse,
+  type CustomerInput,
 } from "@suqo/sdk";
 import { getSuqoClient } from "./suqo-client.js";
-
-interface Buyer {
-  phone: string;
-  fullName: string;
-  email: string;
-  address: string;
-}
 
 /**
  * Creates a subscription for a buyer and returns the checkout URL to redirect
@@ -27,27 +21,22 @@ interface Buyer {
  * If this same buyer already has an inactive/expired subscription for this
  * product+billing-period, SUQO reactivates it instead of creating a new one.
  * A currently-active one throws ValidationError for a duplicate subscription.
+ *
+ * `customer` takes the SDK's full CustomerInput shape directly (rather than a
+ * narrower local type) so billing/shipping overrides stay reachable — see
+ * subscriptions.md for the billing_-prefix wire asymmetry on those fields.
  */
 export async function createSubscriptionForBuyer(params: {
   pbpId: string;
   returnUrl: string;
-  buyer: Buyer;
+  customer: CustomerInput;
 }): Promise<CreateSubscriptionResponse> {
   const suqo = getSuqoClient();
 
   return suqo.subscriptions.create({
     pbpId: params.pbpId,
     returnUrl: params.returnUrl,
-    customer: {
-      phone: params.buyer.phone,
-      fullName: params.buyer.fullName,
-      email: params.buyer.email,
-      address: params.buyer.address,
-      // billing/shipping are optional — omitting them fills billing info from
-      // the buyer's existing profile server-side. Include them only when you
-      // have different values to send, and remember the wire asymmetry:
-      // billing.* fields get a "billing_" prefix on write, shipping.* don't.
-    },
+    customer: params.customer,
   });
 }
 
@@ -61,24 +50,26 @@ export async function createSubscriptionForBuyer(params: {
 export async function handleCreateSubscription(req: {
   pbpId: string;
   returnUrl: string;
-  buyer: Buyer;
+  customer: CustomerInput;
 }): Promise<{ status: number; body: unknown }> {
   try {
     const response = await createSubscriptionForBuyer(req);
     return { status: 201, body: response };
   } catch (err) {
     if (err instanceof ValidationError) {
+      // A genuine problem with THIS request — safe to reflect back.
       // fieldErrors keys are already wire-corrected: "customer.phone", not "client.phone".
       return { status: 422, body: { message: err.message, fieldErrors: err.fieldErrors } };
     }
-    if (err instanceof KycRequiredError) {
-      return { status: 403, body: { message: err.message, kycStatus: err.kycStatus } };
-    }
-    if (err instanceof AuthenticationError) {
-      return { status: 401, body: { message: "SUQO rejected this API key." } };
-    }
     if (err instanceof NotFoundError) {
       return { status: 404, body: { message: err.message } };
+    }
+    if (err instanceof KycRequiredError || err instanceof AuthenticationError) {
+      // NOT the buyer's fault — this means the merchant's own SUQO account
+      // (KYC status, or the API key itself) needs attention. Never leak
+      // kycStatus or auth details to the buyer; alert internally instead.
+      console.error("SUQO merchant configuration problem:", err);
+      return { status: 500, body: { message: "Something went wrong. Please try again later." } };
     }
     if (err instanceof RateLimitError) {
       // Reserved — the live API doesn't emit 429 today, but handle it anyway.

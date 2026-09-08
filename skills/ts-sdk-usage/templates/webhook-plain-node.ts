@@ -3,19 +3,38 @@ import type { WebhookEvent } from "@suqo/sdk";
 import { getSuqoClient } from "./suqo-client.js";
 
 const WEBHOOK_PATH = "/webhooks/suqo";
+// Same default Express's own express.raw() ships with — there's no framework
+// here to enforce this for us, so it has to be done by hand.
+const MAX_BODY_BYTES = 100 * 1024;
 
-function readRawBody(req: IncomingMessage): Promise<Buffer> {
+function readRawBody(req: IncomingMessage, maxBytes: number): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    let total = 0;
+    req.on("data", (chunk: Buffer) => {
+      total += chunk.length;
+      if (total > maxBytes) {
+        req.destroy();
+        reject(new Error("Payload too large"));
+        return;
+      }
+      chunks.push(chunk);
+    });
     req.on("end", () => resolve(Buffer.concat(chunks)));
     req.on("error", reject);
   });
 }
 
 async function handleWebhook(req: IncomingMessage, res: ServerResponse): Promise<void> {
-  // Read the raw bytes FIRST — no framework here to accidentally parse them for us.
-  const rawBody = await readRawBody(req);
+  // Read the raw bytes FIRST — no framework here to accidentally parse them
+  // for us, and no size cap either unless we enforce one ourselves.
+  let rawBody: Buffer;
+  try {
+    rawBody = await readRawBody(req, MAX_BODY_BYTES);
+  } catch {
+    res.writeHead(413).end();
+    return;
+  }
 
   const signature = req.headers["x-suqo-signature"];
   const timestamp = req.headers["x-suqo-timestamp"];

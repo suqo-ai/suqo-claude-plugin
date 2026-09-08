@@ -7,7 +7,9 @@ import { getSuqoClient } from "./suqo-client.js";
 async function main(): Promise<void> {
   const suqo = getSuqoClient();
 
-  for await (const product of suqo.products.autoPaging()) {
+  // pageSize: 100 is the server's documented max — fewer round-trips than
+  // leaving it at the default page size of 20.
+  for await (const product of suqo.products.autoPaging({ pageSize: 100 })) {
     console.log(`${product.name} (${product.productId})`);
 
     for (const plan of product.plan) {

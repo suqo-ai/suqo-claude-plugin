@@ -109,8 +109,17 @@ interface VerifyWebhookOptions {
 verify(options: VerifyWebhookOptions): boolean
 ```
 
-Standalone — no client, no API key, no network call. **Never throws**: every
-failure mode returns `false`. Full detail in `webhooks.md`.
+Makes no network call and the API key plays no role in verification — but
+it's still a method on an already-constructed `SuqoClient`, since
+`WebhooksResource` isn't exported for standalone construction. **Never
+throws**: every failure mode returns `false`. Full detail in `webhooks.md`.
+
+Event payload types, exported for use after `verify()` returns `true` and
+you `JSON.parse(rawBody)` yourself: `WebhookEvent` (the union),
+`WebhookEventType`, `CheckoutSucceededEvent`, `CheckoutFailedEvent`,
+`SubscriptionStatusChangedEvent`, `ApiKeyCreatedEvent`, `ApiKeyDeletedEvent`,
+`ApiKeyExpiredEvent`, `ApiKeyExpiringSoonEvent`. Full shapes in
+`webhooks.md`.
 
 ## `mapHttpError`
 
