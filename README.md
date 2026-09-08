@@ -18,7 +18,7 @@ Once installed, Claude loads the relevant skill on its own when a developer asks
 | Skill | Triggers on |
 |---|---|
 | `php-sdk-usage` | Any PHP work with the SUQO PHP SDK — products, subscriptions, paging, webhook verification, client wiring, error handling, testing. |
-| `ts-sdk-usage` | Any TypeScript/Node work with the SUQO TS SDK (`@suqo/sdk`) — products, subscriptions, resuming/cancelling, paging, webhook verification (Express, Next.js, plain Node), client wiring, error handling, testing. |
+| `ts-sdk-usage` | Any TypeScript/Node work with the SUQO TS SDK (`@suqo/sdk`) — products, customers, subscriptions, resuming/cancelling, paging, webhook verification (Express, Fastify, Next.js, plain Node), client wiring, error handling, testing. |
 
 Each skill is self-contained: `SKILL.md` carries the workflow and the rules that
 are easy to get wrong, `references/` holds the detail Claude loads only when the
@@ -48,9 +48,10 @@ suqo-claude-plugin/
       SKILL.md
       references/         # api-surface, client-setup, products, subscriptions,
                           #   customers, webhooks, errors, models
-      templates/          # client factory, list-products, shared error ladder,
-                          #   create-subscription, manage-subscription,
-                          #   webhook handlers (plain Node, Express, Next.js)
+      templates/          # client factory, list-products, list-customers,
+                          #   shared error ladder, create-subscription,
+                          #   manage-subscription, a write test, webhook
+                          #   handlers (plain Node, Express, Fastify, Next.js)
   README.md
 ```
 

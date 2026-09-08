@@ -71,6 +71,26 @@ export async function POST(req: Request) {
 }
 ```
 
+**Fastify**: there's no drop-in equivalent of `express.raw()` — Fastify's
+built-in JSON parser already consumes the body before any handler runs, and
+overriding it with `addContentTypeParser()` applies to the whole Fastify
+*instance* it's called on. Register the webhook route inside its own plugin
+scope so the override only applies there, not app-wide — Fastify's
+encapsulation model keeps every other route's normal JSON parsing untouched:
+
+```ts
+const webhookRoutes: FastifyPluginAsync = async (instance) => {
+  instance.addContentTypeParser(
+    "application/json",
+    { parseAs: "buffer" },              // scoped to this plugin instance only
+    (_req, body, done) => done(null, body),
+  );
+  instance.post("/webhooks/suqo", async (request, reply) => { /* request.body is a Buffer here */ });
+};
+
+fastify.register(webhookRoutes); // NOT fastify.post(...) directly on the root instance
+```
+
 ## Signed payload format
 
 ```
