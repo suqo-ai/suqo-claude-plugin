@@ -1,6 +1,6 @@
 {
   "name": "suqo-claude-plugin",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Claude skills for building apps with the SUQO SDKs (PHP and TypeScript).",
   "author": {
     "name": "Code Pros AI",
