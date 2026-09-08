@@ -51,18 +51,36 @@ final class SuqoServiceProvider extends ServiceProvider
     }
 
     /**
-     * Fail fast on a *malformed* key in a console context (queue workers,
-     * scheduled commands) rather than inside the first job.
+     * Fail fast on a missing or malformed key in a console context (queue
+     * workers, scheduled commands) rather than inside the first job.
      *
-     * Guarded on the key being present: `composer install` runs
+     * Skipped for the build/cache commands only: `composer install` runs
      * `package:discover`, and CI runs `config:cache` / `route:cache`, usually
-     * with no SUQO_API_KEY at all. An unconditional make() here would abort
-     * every one of those. A missing key still surfaces — as the
-     * RuntimeException above — the first time something resolves the client.
+     * with no SUQO_API_KEY at all, so an unconditional make() would abort
+     * every one of those. Every other console command — `queue:work` above
+     * all — still resolves the client here, so a broken deploy fails at boot
+     * instead of inside a job.
      */
     public function boot(): void
     {
-        if ($this->app->runningInConsole() && (string) config('services.suqo.key') !== '') {
+        if (! $this->app->runningInConsole()) {
+            return;
+        }
+
+        // These legitimately run without application credentials.
+        $buildCommands = [
+            'package:discover',
+            'config:cache',
+            'config:clear',
+            'route:cache',
+            'route:clear',
+            'optimize',
+            'optimize:clear',
+        ];
+
+        $command = $_SERVER['argv'][1] ?? '';
+
+        if (! in_array($command, $buildCommands, true)) {
             $this->app->make(SuqoClient::class);
         }
     }
