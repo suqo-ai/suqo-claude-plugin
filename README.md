@@ -47,11 +47,12 @@ suqo-claude-plugin/
     ts-sdk-usage/
       SKILL.md
       references/         # api-surface, client-setup, products, subscriptions,
-                          #   customers, webhooks, errors, models
-      templates/          # client factory, list-products, list-customers,
-                          #   shared error ladder, create-subscription,
-                          #   manage-subscription, a write test, webhook
-                          #   handlers (plain Node, Express, Fastify, Next.js)
+                          #   customers, webhooks, errors, models, pagination
+      templates/          # client factory, list-products (+ paged variant),
+                          #   list-customers, shared error ladder,
+                          #   create-subscription, manage-subscription,
+                          #   a write test, webhook handlers (plain Node,
+                          #   Express, Fastify, Next.js)
   README.md
 ```
 

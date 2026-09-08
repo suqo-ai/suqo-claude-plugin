@@ -145,11 +145,10 @@ rules. Full hierarchy in `errors.md`.
 ```ts
 interface Page<T> { count: number; next: string | null; previous: string | null; results: T[]; }
 interface PageParams { page?: number; pageSize?: number; }   // pageSize -> wire page_size
-interface SubscriptionStatusCounts {
+type SubscriptionPage<T> = Page<T> & {
   totalSubscriptions: number; activeSubscriptions: number;
   dueSubscriptions: number; inactiveSubscriptions: number;
-}
-type SubscriptionPage<T> = Page<T> & SubscriptionStatusCounts;
+};
 
 function toPageQuery(params?: PageParams): QueryParams
 function deserializePage<TWireItem, T>(wire: Page<TWireItem>, deserializeItem: (item: TWireItem) => T): Page<T>
@@ -157,10 +156,9 @@ function listAll<T>(firstPage: Page<T>, fetchNext: (nextUrl: string) => Promise<
 function bridgeAutoPaging<T>(fetchFirstPage: () => Promise<Page<T>>, fetchNext: (nextUrl: string) => Promise<Page<T>>, maxPages?: number): AsyncIterableIterator<T>
 ```
 
-`maxPages` defaults to `10_000` and exists purely as a stuck-loop guard —
-exceeding it without ever reaching `next: null` throws. There's no
-cancellation/abort support on the iterator itself; cancel per HTTP call
-instead (an internal detail, not part of the public surface — see below).
+Manual `page`/`pageSize` paging, `.autoPaging()`, the `maxPages` stuck-loop
+guard, and why there's no way to cancel an in-flight list call from public
+code today are all covered in full in `pagination.md`.
 
 ## `VERSION`
 

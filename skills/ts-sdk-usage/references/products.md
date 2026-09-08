@@ -11,7 +11,9 @@ buyer yet (e.g. rendering a public pricing page).
 
 `PageParams` is `{ page?: number; pageSize?: number }` — `pageSize` maps to
 the wire's `page_size`, same as every other list call. Server default page
-size is 20, server max is 100.
+size is 20, server max is 100. Full pagination mechanics (manual paging for
+a UI, `.autoPaging()`, and why an in-flight call can't be cancelled today)
+are in `pagination.md`.
 
 ## The id chain into `subscriptions.create`
 
