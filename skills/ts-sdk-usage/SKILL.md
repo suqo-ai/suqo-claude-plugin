@@ -152,12 +152,13 @@ purpose), and the dashboard's test-event quirk are in
 | --- | --- |
 | `references/api-surface.md` | Writing any SDK call — exact signatures, exports, and what's deliberately not public. Load first. |
 | `references/client-setup.md` | Constructing the client, environment inference, the not-yet-published install story, framework wiring. |
-| `references/products.md` | Listing products/plans, pagination, the pbpId chain into subscriptions. |
+| `references/products.md` | Listing products/plans, the pbpId chain into subscriptions. |
 | `references/subscriptions.md` | Create, cancel, billing-cycle, resume flows; the customer/client wire rename and its billing-prefix asymmetry. |
 | `references/customers.md` | The real (not stub) customers resource; the integer id exception. |
 | `references/webhooks.md` | Verification semantics, signed-payload format, event catalogue. |
 | `references/errors.md` | Error hierarchy, retry rules, mapping to HTTP responses. |
 | `references/models.md` | Property tables for every model, and the short list of wire↔SDK renames. |
+| `references/pagination.md` | Manual `page`/`pageSize` vs `.autoPaging()`, and why an in-flight call can't be cancelled today. |
 
 ## Templates index
 
@@ -165,6 +166,7 @@ purpose), and the dashboard's test-event quirk are in
 | --- | --- |
 | `templates/suqo-client.ts` | Lazy, guarded singleton client factory. |
 | `templates/list-products.ts` | `autoPaging` read down to a billing period's `pbpId`. |
+| `templates/list-products-paged.ts` | Manual `page`/`pageSize` for a Next/Previous UI control. |
 | `templates/list-customers.ts` | `list`/`retrieve` on the real (not stub) customers resource. |
 | `templates/subscription-error-handling.ts` | The shared write error ladder used by both templates below. |
 | `templates/create-subscription.ts` | Full nested `create()`. |
