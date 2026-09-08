@@ -35,7 +35,7 @@ const suqo = new SuqoClient({ apiKey: process.env.SUQO_API_KEY! });
 | `baseUrl` | inferred from `apiKey` | A *check*, not a switch — see below. |
 | `timeout` | `30_000` ms | Per-request; aborts and throws `NetworkError` if exceeded. |
 | `maxRetries` | `2` (3 attempts total) | **Reads only.** `create`/`cancel`/`updateBillingCycle`/`resume` never retry regardless of this value. |
-| `dispatcher` | none | An undici `Dispatcher`, forwarded into every `fetch()` call verbatim. This is the SDK's one real extension/testing seam — see the Testing section of `SKILL.md`. |
+| `dispatcher` | none | An undici `Dispatcher`, forwarded into every `fetch()` call verbatim (real production use: a custom proxy/keep-alive agent). Not recommended for mocking in tests — see the Testing section of `SKILL.md` for why and what to use instead. |
 
 No per-call override of `timeout`/`maxRetries`/`dispatcher` exists — construct
 a second `SuqoClient` if one call genuinely needs different settings.

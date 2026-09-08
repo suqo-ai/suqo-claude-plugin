@@ -1,6 +1,6 @@
 ---
 name: ts-sdk-usage
-description: Use for any TypeScript/Node work with the SUQO TS SDK (@suqo/sdk) — listing products, creating or cancelling subscriptions, resuming or moving a billing cycle, paging, verifying inbound webhooks, wiring the client into Express, Next.js, or plain Node, reading SUQO error responses, or testing code that calls the SDK. Provides exact method signatures so the SDK is never guessed at, and the raw-body rule that most broken webhook handlers get wrong.
+description: Use for any TypeScript/Node work with the SUQO TS SDK (@suqo/sdk) — listing products, customers, or subscriptions, creating or cancelling subscriptions, resuming or moving a billing cycle, paging, verifying inbound webhooks, wiring the client into Express, Fastify, Next.js, or plain Node, reading SUQO error responses, or testing code that calls the SDK. Provides exact method signatures so the SDK is never guessed at, and the raw-body rule that most broken webhook handlers get wrong.
 ---
 
 # SUQO TypeScript SDK — usage
@@ -117,6 +117,10 @@ router.post("/webhooks/suqo", express.raw({ type: "application/json" }), handler
 // Next.js App Router
 const rawBody = await req.text();
 
+// Fastify: no drop-in equivalent — override addContentTypeParser() inside
+// this route's own plugin scope (fastify.register(...)), not on the root
+// instance, or every other route loses JSON parsing too.
+
 // Plain Node — buffer the chunks yourself before parsing anything
 ```
 
@@ -161,36 +165,44 @@ purpose), and the dashboard's test-event quirk are in
 | --- | --- |
 | `templates/suqo-client.ts` | Lazy, guarded singleton client factory. |
 | `templates/list-products.ts` | `autoPaging` read down to a billing period's `pbpId`. |
+| `templates/list-customers.ts` | `list`/`retrieve` on the real (not stub) customers resource. |
 | `templates/subscription-error-handling.ts` | The shared write error ladder used by both templates below. |
 | `templates/create-subscription.ts` | Full nested `create()`. |
 | `templates/manage-subscription.ts` | `cancel`/`updateBillingCycle`/`resume`. |
 | `templates/webhook-plain-node.ts` | No-framework webhook endpoint. |
 | `templates/webhook-express.ts` | Express route with `express.raw()` scoped correctly. |
+| `templates/webhook-fastify.ts` | Fastify route with a plugin-scoped raw-body parser. |
 | `templates/webhook-nextjs-route.ts` | Next.js App Router route handler. |
+| `templates/subscription-write.test.ts` | Vitest test for a write, stubbing `fetch` directly. |
 
 ## Testing SDK code
 
-The seam is `dispatcher` on `SuqoClientOptions` — the SDK's internal HTTP
-layer forwards it into every `fetch()` call unchanged:
+Stub the global `fetch`, the same way the SDK's own test suite does
+(`test/http/HttpClient.test.ts`) — no extra dependency needed:
 
 ```ts
-import { MockAgent, setGlobalDispatcher } from "undici";
+import { vi } from "vitest";
 
-const mockAgent = new MockAgent();
-setGlobalDispatcher(mockAgent);
-mockAgent.disableNetConnect();
-
-const suqo = new SuqoClient({
-  apiKey: "su_test_key_abc",
-  dispatcher: mockAgent.get("https://test-be.suqo.ai"),
-});
+vi.stubGlobal("fetch", vi.fn());
+vi.mocked(fetch).mockResolvedValueOnce(
+  new Response(JSON.stringify({ /* wire-shaped body */ }), { status: 201 }),
+);
 ```
 
 Every layer above the network — the auth header, retry/backoff, error
-mapping, pagination — still runs for real; only the response bytes are
-faked. `msw` is the alternative the SDK's own `test/contract/` suite uses
-(route/URL-level interception) if you'd rather not depend on undici
-specifics.
+mapping, pagination — still runs for real; only the raw `Response` is faked.
+`msw` is the route/URL-level alternative the SDK's own `test/contract/`
+suite uses.
+
+**Don't reach for `SuqoClientOptions.dispatcher` for this**, even though
+it's a real, documented option forwarded into every `fetch()` call. Passing
+a `MockAgent`/`MockPool` from a separately npm-installed `undici` package as
+that per-call `dispatcher` is not reliably recognized by Node's *built-in*
+global `fetch` — confirmed here to silently fall through to a real network
+attempt (and hang) rather than intercept, since the two are different
+module realms. `undici`'s own `setGlobalDispatcher(mockAgent)` (not the
+per-call option) is cross-realm-safe if you want that layer specifically,
+but `vi.stubGlobal` is simpler and needs nothing extra installed.
 
 Never mock `SuqoClient` or a resource directly — mocking the thing under
 test tests the mock instead of the integration, the same rule PHP's skill
