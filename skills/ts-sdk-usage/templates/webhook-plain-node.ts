@@ -63,8 +63,20 @@ async function handleWebhook(req: IncomingMessage, res: ServerResponse): Promise
   // Return 2xx fast, then process out of band — a slow handler gets retried and duplicated.
   res.writeHead(200).end();
 
-  // Parse only AFTER verifying. Event payloads stay snake_case on purpose.
-  const event = JSON.parse(rawBody.toString("utf8")) as WebhookEvent;
+  // Parse only AFTER verifying. Event payloads stay snake_case on purpose. The
+  // 200 already went out, so a parse failure here can only be logged, never
+  // turned into an error response — a verified signature says the bytes came
+  // from SUQO, not that they're valid JSON. Caught in its own try/catch and
+  // returned early, rather than let it reject handleWebhook's promise and
+  // reach the outer .catch() below, which has no response left to send.
+  let event: WebhookEvent;
+  try {
+    event = JSON.parse(rawBody.toString("utf8")) as WebhookEvent;
+  } catch (err) {
+    console.error("verified event had an unparseable body:", err);
+    return;
+  }
+
   // .catch(), not bare fire-and-forget — an uncaught rejection here would
   // crash the whole process (Node terminates on unhandled rejection by
   // default) over a single bad event, taking down every other in-flight request.
@@ -93,7 +105,12 @@ const server = createServer((req, res) => {
   if (req.method === "POST" && req.url === WEBHOOK_PATH) {
     handleWebhook(req, res).catch((err: unknown) => {
       console.error(err);
-      res.writeHead(500).end();
+      // A response may already have gone out (e.g. the 200 before an
+      // out-of-band failure) — writeHead() on a headers-already-sent
+      // response throws ERR_HTTP_HEADERS_SENT, which would otherwise
+      // become a second, truly unhandled rejection right here.
+      if (!res.headersSent) res.writeHead(500);
+      res.end();
     });
     return;
   }

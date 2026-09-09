@@ -128,7 +128,12 @@ const rawBody = await req.text();
 
 1. Read the raw body **first**, before any parsing.
 2. Verify, and on `false` return `400` and stop. Don't parse, don't process.
-3. Parse only after verifying.
+3. Parse only after verifying — in its own try/catch. A verified signature
+   proves the bytes came from SUQO, not that they're valid JSON; on plain
+   `http.ServerResponse` this genuinely crashes the process if the 2xx
+   already went out and the parse failure reaches a handler that tries to
+   send a second response (confirmed, not hypothetical — see
+   `references/webhooks.md`).
 4. Return `2xx` fast, then process out of band — a slow handler gets
    retried and duplicated. **On a serverless/edge runtime** (Vercel, Lambda,
    ...) that pattern is unsafe: the function can be frozen the instant the
