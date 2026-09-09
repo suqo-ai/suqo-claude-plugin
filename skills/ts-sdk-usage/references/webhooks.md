@@ -163,7 +163,19 @@ events.
    touches it.
 2. Verify. On `false`, return `400` and stop — don't parse, don't log the
    body as trusted, don't process.
-3. Parse (`JSON.parse(rawBody)`) only after verifying.
+3. Parse (`JSON.parse(rawBody)`) only after verifying — in its own
+   try/catch. **A verified signature proves the bytes came from SUQO, not
+   that they're valid JSON.** If parsing happens after a 2xx has already
+   been sent (plain Node, Express, Fastify all send the 2xx before
+   parsing — see their templates), a parse failure can only be logged, not
+   turned into an error response; on plain `http.ServerResponse` in
+   particular, letting it propagate uncaught into a handler that then
+   tries to send a second response throws `ERR_HTTP_HEADERS_SENT`, which
+   crashes the process on Node's default unhandled-rejection behavior —
+   confirmed, not hypothetical. Express/Fastify happen to swallow this
+   silently instead of crashing, but silently is still worse than logging
+   it. `templates/webhook-nextjs-route.ts` parses *before* responding, so
+   it can return a real `400` instead.
 4. Return `2xx` fast, then process out of band. A slow handler gets retried
    and duplicated. **On a serverless/edge runtime** (Vercel, Lambda, ...)
    fire-and-forget is unsafe — the function can be frozen the instant the

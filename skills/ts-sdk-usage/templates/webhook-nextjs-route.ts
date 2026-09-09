@@ -68,8 +68,18 @@ export async function POST(req: Request): Promise<Response> {
     return new Response(null, { status: 400 });
   }
 
-  // Parse only AFTER verifying. Event payloads stay snake_case on purpose.
-  const event = JSON.parse(rawBody) as WebhookEvent;
+  // Parse only AFTER verifying. Event payloads stay snake_case on purpose. A
+  // verified signature says the bytes came from SUQO, not that they're valid
+  // JSON — caught explicitly here (unlike the other three templates, no
+  // response has been sent yet at this point, so a real 400 is still
+  // possible, instead of leaving it to become a generic 500).
+  let event: WebhookEvent;
+  try {
+    event = JSON.parse(rawBody) as WebhookEvent;
+  } catch (err) {
+    console.error("verified event had an unparseable body:", err);
+    return new Response(null, { status: 400 });
+  }
 
   // Awaited, unlike the plain-Node/Express templates' fire-and-forget: on a
   // serverless/edge runtime (e.g. Vercel), the function can be frozen the

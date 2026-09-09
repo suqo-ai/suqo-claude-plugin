@@ -57,8 +57,19 @@ const webhookRoutes: FastifyPluginAsync = async (instance: FastifyInstance) => {
       // Return 2xx fast, then process out of band.
       void reply.code(200).send();
 
-      // Parse only AFTER verifying. Event payloads stay snake_case on purpose.
-      const event = JSON.parse(rawBody.toString("utf8")) as WebhookEvent;
+      // Parse only AFTER verifying. Event payloads stay snake_case on purpose. The
+      // 200 already went out, so a parse failure here can only be logged — a
+      // verified signature says the bytes came from SUQO, not that they're
+      // valid JSON. Fastify does swallow a rejection here without crashing
+      // the process, but silently — logging explicitly instead of relying on that.
+      let event: WebhookEvent;
+      try {
+        event = JSON.parse(rawBody.toString("utf8")) as WebhookEvent;
+      } catch (err) {
+        request.log.error(err, "verified event had an unparseable body");
+        return;
+      }
+
       // .catch(), not bare fire-and-forget — an uncaught rejection here would
       // crash the whole process (Node terminates on unhandled rejection by
       // default) over a single bad event, taking down every other in-flight request.
