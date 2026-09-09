@@ -97,10 +97,14 @@ const secret = process.env.SUQO_WEBHOOK_SECRET;
 // blending into ordinary bad-signature noise.
 if (!secret) throw new Error("SUQO_WEBHOOK_SECRET is not set");
 
+const signature = req.header("x-suqo-signature");
+const timestamp = req.header("x-suqo-timestamp");
+if (!signature || !timestamp) throw new Error("Missing signature/timestamp header"); // 400 and stop, in real code
+
 const verified = suqo.webhooks.verify({
   rawBody,                                          // the exact bytes received — see below
-  signature: req.header("x-suqo-signature"),
-  timestamp: req.header("x-suqo-timestamp"),
+  signature,
+  timestamp,
   secret,
   toleranceSec: 300,                                // optional, default 300
 });
